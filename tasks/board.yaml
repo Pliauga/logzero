@@ -3,10 +3,68 @@
 # One task per DSH session. Review between tasks.
 
 tasks:
+  - id: LZ-100
+    title: Align Go module path and config with renamed GitHub repo
+    goal: Update the module path and all repo references to match github.com/Pliauga/logzero
+    context: |
+      The GitHub repo was renamed to 'Pliauga/logzero'. The Go module path is
+      still 'github.com/logzero/logzero', which no longer matches any real repo.
+      All import paths, OCI labels, GHCR image paths, and doc URLs must be updated.
+    files:
+      - go.mod
+      - cmd/logzero/main.go
+      - cmd/logzero/main_test.go
+      - pkg/aws/cloudtrail.go
+      - pkg/aws/cloudtrail_test.go
+      - pkg/aws/cloudtrail_fuzz_test.go
+      - pkg/parser/normalizer.go
+      - pkg/parser/normalizer_test.go
+      - pkg/synthesis/hcl.go
+      - pkg/synthesis/hcl_test.go
+      - .goreleaser.yaml
+      - README.md
+      - AGENTS.md
+    steps:
+      - Update 'module github.com/logzero/logzero' to 'module github.com/Pliauga/logzero' in go.mod
+      - Replace all 'github.com/logzero/logzero' import paths with 'github.com/Pliauga/logzero'
+      - Replace OCI label URLs in .goreleaser.yaml from 'https://github.com/logzero/logzero' to 'https://github.com/Pliauga/logzero'
+      - Replace GHCR image paths from 'ghcr.io/logzero/logzero' to 'ghcr.io/pliauga/logzero' (GHCR requires lowercase owner)
+      - Update clone URL and Releases URL in README.md to 'https://github.com/Pliauga/logzero'
+      - Update the go install example in AGENTS.md to 'github.com/Pliauga/logzero@latest'
+      - Run 'go mod tidy'
+      - Run 'go build ./...'
+      - Run 'go test -race -count=1 ./...'
+    commands:
+      - grep -rn "github.com/logzero/logzero" --include="*.go" --include="*.yaml" --include="*.yml" --include="*.md" . | grep -v "^./.git/"
+      - grep -rn "ghcr.io/logzero" .goreleaser.yaml .github/workflows/ | grep -v "^./.git/"
+      - go mod tidy
+      - go build ./...
+      - go test -race -count=1 ./...
+    tests:
+      - No remaining references to 'github.com/logzero/logzero' anywhere in source, config, or docs
+      - No remaining references to 'ghcr.io/logzero' anywhere
+      - go build succeeds
+      - go test succeeds
+    done_criteria:
+      - go.mod declares module github.com/Pliauga/logzero
+      - All imports resolve
+      - All config and docs reference the correct URL
+      - Build and tests pass
+    constraints:
+      - Do NOT change the GitHub repo name again
+      - Do NOT change the module path to all-lowercase ('pliauga') — match the URL exactly
+      - Preserve all other code structure
+    escalation: If grep shows files not listed above, list them before editing
+    depends_on: []
+    parallelizable: false
+    agent_role: implementer
+    estimated_effort: M
+    priority: P0
+
   - id: LZ-101
     title: Verify build and full test suite
     goal: Confirm the project builds and all tests pass with race detector
-    context: Baseline verification after audit implementation pass
+    context: Baseline verification after module-path alignment
     files: []
     steps:
       - Run 'go mod verify'
@@ -28,8 +86,8 @@ tasks:
     constraints:
       - Do not modify any source files
       - Report-only task
-    escalation: If any test fails, report the failure and stop. Do not proceed to other tasks.
-    depends_on: []
+    escalation: If any test fails, report the failure and stop.
+    depends_on: [LZ-100]
     parallelizable: false
     agent_role: tester
     estimated_effort: S
@@ -49,7 +107,7 @@ tasks:
     commands:
       - gosec --version
       - gosec ./...
-      - govulncheck -version
+      - govulncheck --version
       - govulncheck ./...
     tests:
       - gosec runs successfully
@@ -89,8 +147,8 @@ tasks:
     constraints:
       - Do not push any releases
       - Snapshot only
-    escalation: If goreleaser check fails, report the error and propose a fix in a follow-up task.
-    depends_on: [LZ-101]
+    escalation: If goreleaser check fails, report the error and propose a fix
+    depends_on: [LZ-100, LZ-101]
     parallelizable: true
     agent_role: release-engineer
     estimated_effort: S
@@ -103,8 +161,9 @@ tasks:
     files:
       - .github/workflows/security.yml
     steps:
-      - Replace gosec '@latest' with '@v2.29.0'
-      - Replace govulncheck '@latest' with '@v1.8.0'
+      - Determine the pinned versions from local 'gosec --version' and 'govulncheck -version'
+      - Replace gosec '@latest' with '@<resolved version>'
+      - Replace govulncheck '@latest' with '@<resolved version>'
       - Verify YAML is valid
     commands:
       - grep -n "go install" .github/workflows/security.yml
@@ -115,7 +174,7 @@ tasks:
     constraints:
       - Do not change any other CI behaviour
     escalation: None
-    depends_on: [LZ-101]
+    depends_on: [LZ-100, LZ-101]
     parallelizable: true
     agent_role: release-engineer
     estimated_effort: S
@@ -124,12 +183,12 @@ tasks:
   - id: LZ-105
     title: Add container image scanning to release workflow
     goal: Scan the built container image for vulnerabilities before publishing
-    context: HANDOFF claims Grype scanning exists; verify and add if missing
+    context: Verify whether Grype scanning exists in release.yml; add if missing
     files:
       - .github/workflows/release.yml
     steps:
       - Check whether Grype or Trivy is already invoked in release.yml
-      - If missing, add a step that runs 'grype ghcr.io/logzero/logzero:{version} --fail-on high'
+      - If missing, add a step that runs 'grype ghcr.io/pliauga/logzero:{version} --fail-on high'
       - Add the scan between image push and release publication
     commands:
       - grep -n "grype\|trivy" .github/workflows/release.yml
@@ -167,7 +226,7 @@ tasks:
     constraints:
       - Do not change the production (distroless) stage
     escalation: If the digest cannot be resolved offline, document the command in a comment
-    depends_on: [LZ-101]
+    depends_on: [LZ-100, LZ-101]
     parallelizable: true
     agent_role: release-engineer
     estimated_effort: S
