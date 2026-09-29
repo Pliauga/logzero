@@ -122,6 +122,10 @@ CloudTrail JSON (file or live API)
 
 - **Path traversal protection** is enforced in the synthesis writer. Do not weaken it.
 
+- **gosec severity gate.** CI runs gosec with `-severity high`, which
+  fails the build on HIGH or CRITICAL findings. MEDIUM and LOW findings
+  are recorded in SARIF but do not block. Do not re-add `-no-fail`.
+
 - **Never commit secrets, credentials, tokens, or real AWS account identifiers.** Test fixtures use documented placeholder account IDs `123456789012`, `111122223333`, etc.).
 
 ## Code Style
