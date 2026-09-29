@@ -80,6 +80,14 @@ them. The `writing stat cache: ... operation not permitted` warning on stderr
 
 is cosmetic and does not affect build results.
 
+When running gosec locally, exclude the workspace GOMODCACHE:
+
+`gosec -exclude-dir=.gomodcache ./...`. Without this exclusion, gosec scans
+
+dependency sources as first-party code and reports many times the true finding
+
+count.
+
 ## Architecture
 
 ```
