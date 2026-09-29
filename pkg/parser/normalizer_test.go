@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/logzero/logzero/pkg/models"
+	"github.com/Pliauga/logzero/pkg/models"
 )
 
 func TestZeroPIIUnmarshaling(t *testing.T) {

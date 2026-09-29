@@ -54,7 +54,7 @@ signs:
 
 dockers:
   - image_templates:
-      - "ghcr.io/logzero/logzero:{{ .Version }}-amd64"
+      - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -63,11 +63,11 @@ dockers:
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/logzero/logzero"
+      - "--label=org.opencontainers.image.source=https://github.com/Pliauga/logzero"
     dockerfile: Dockerfile
     goarch: amd64
   - image_templates:
-      - "ghcr.io/logzero/logzero:{{ .Version }}-arm64"
+      - "ghcr.io/pliauga/logzero:{{ .Version }}-arm64"
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64"
@@ -76,19 +76,19 @@ dockers:
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/logzero/logzero"
+      - "--label=org.opencontainers.image.source=https://github.com/Pliauga/logzero"
     dockerfile: Dockerfile
     goarch: arm64
 
 docker_manifests:
-  - name_template: "ghcr.io/logzero/logzero:{{ .Version }}"
+  - name_template: "ghcr.io/pliauga/logzero:{{ .Version }}"
     image_templates:
-      - "ghcr.io/logzero/logzero:{{ .Version }}-amd64"
-      - "ghcr.io/logzero/logzero:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/logzero/logzero:latest"
+      - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
+      - "ghcr.io/pliauga/logzero:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/pliauga/logzero:latest"
     image_templates:
-      - "ghcr.io/logzero/logzero:{{ .Version }}-amd64"
-      - "ghcr.io/logzero/logzero:{{ .Version }}-arm64"
+      - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
+      - "ghcr.io/pliauga/logzero:{{ .Version }}-arm64"
 
 changelog:
   sort: asc
