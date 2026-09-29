@@ -16,8 +16,8 @@ This file documents how to use it productively on LogZero. It does not describe 
 Install required tooling in your shell so agents don't spend context on it:
 
 ```
-go install github.com/securego/gosec/v2/cmd/gosec@latest
-go install golang.org/x/vuln/cmd/govulncheck@latest
+go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
 ```
 
 Install GoReleaser (not available via `go install`; use Homebrew on macOS):
