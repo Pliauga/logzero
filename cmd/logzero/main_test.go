@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/logzero/logzero/pkg/aws"
-	"github.com/logzero/logzero/pkg/models"
-	"github.com/logzero/logzero/pkg/parser"
-	"github.com/logzero/logzero/pkg/synthesis"
+	"github.com/Pliauga/logzero/pkg/aws"
+	"github.com/Pliauga/logzero/pkg/models"
+	"github.com/Pliauga/logzero/pkg/parser"
+	"github.com/Pliauga/logzero/pkg/synthesis"
 )
 
 func TestEndToEndFixtureIngestion(t *testing.T) {

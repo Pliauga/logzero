@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/logzero/logzero/pkg/parser"
+	"github.com/Pliauga/logzero/pkg/parser"
 )
 
 func FuzzIngestFromReader(f *testing.F) {

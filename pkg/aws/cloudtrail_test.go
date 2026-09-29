@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/logzero/logzero/pkg/parser"
+	"github.com/Pliauga/logzero/pkg/parser"
 )
 
 func TestIngestFromReader(t *testing.T) {

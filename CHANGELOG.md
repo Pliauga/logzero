@@ -17,3 +17,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - GitHub Actions workflows (security, release)
 - GoReleaser configuration with Cosign signing and SBOM generation
 - GitHub Action composite for CI/CD integration
+
+### Changed
+- Aligned the Go module path and all repository references with the renamed
+  GitHub repository (previously published under the `logzero/logzero` module
+  path), which is now `github.com/Pliauga/logzero`. This includes Go import
+  paths, OCI image source labels, GHCR image paths (`ghcr.io/pliauga/logzero`),
+  and documentation URLs. Consumers importing the module as a Go dependency
+  must update their import paths accordingly.
+- Updated the Go toolchain used in CI (`security.yml`, `release.yml`) from 1.22
+  to 1.25, matching the `go 1.25.0` directive in `go.mod`.

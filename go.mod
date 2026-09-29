@@ -1,4 +1,4 @@
-module github.com/logzero/logzero
+module github.com/Pliauga/logzero
 
 go 1.25.0
 

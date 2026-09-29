@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/logzero/logzero/pkg/models"
+	"github.com/Pliauga/logzero/pkg/models"
 )
 
 func TestGenerateHCLPolicy(t *testing.T) {

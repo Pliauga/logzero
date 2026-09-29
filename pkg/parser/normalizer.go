@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/logzero/logzero/pkg/models"
+	"github.com/Pliauga/logzero/pkg/models"
 )
 
 var ServicePrefixMap = map[string]string{

@@ -19,7 +19,7 @@ LogZero is a **zero-egress CLI tool** that observes AWS CloudTrail API events (l
 
 ### From GitHub Releases (Recommended)
 
-Download the latest signed binary from [GitHub Releases](https://github.com/logzero/logzero/releases).
+Download the latest signed binary from [GitHub Releases](https://github.com/Pliauga/logzero/releases).
 
 All release artifacts are signed with [Cosign](https://github.com/sigstore/cosign) and include SHA256 checksums and SBOMs.
 
@@ -34,7 +34,7 @@ cosign verify-blob \
 ### From Source
 
 ```bash
-git clone https://github.com/logzero/logzero.git
+git clone https://github.com/Pliauga/logzero.git
 cd logzero
 make build
 # Binary at ./bin/logzero
@@ -43,7 +43,7 @@ make build
 ### Docker
 
 ```bash
-docker run --rm -v $(pwd):/data ghcr.io/logzero/logzero:latest --file /data/cloudtrail.json --format hcl
+docker run --rm -v $(pwd):/data ghcr.io/pliauga/logzero:latest --file /data/cloudtrail.json --format hcl
 ```
 
 > **Note:** `go install` is **not recommended** for production use due to supply-chain risks in the Go module proxy ecosystem.
