@@ -34,7 +34,7 @@ tasks:
       - Replace GHCR image paths from 'ghcr.io/logzero/logzero' to 'ghcr.io/pliauga/logzero' (GHCR requires lowercase owner)
       - Update the same GHCR path anywhere it appears in .github/workflows/release.yml
       - Update clone URL and Releases URL in README.md to 'https://github.com/Pliauga/logzero'
-      - In AGENTS.md line 80, replace 'github.com/logzero/logzero' with 'github.com/Pliauga/logzero' and fix the broken markdown link '[DSH.md](http://DSH.md)' to '[DSH.md](DSH.md)'
+      - In the AGENTS.md Security Rules section, replace 'github.com/logzero/logzero' with 'github.com/Pliauga/logzero' and fix the broken markdown link '[DSH.md](http://DSH.md)' to '[DSH.md](DSH.md)'
       - In AGENTS.md, change 'Go 1.22' to 'Go 1.25'
       - In AGENTS.md, change all 'dsn/LZ-{id}' to 'dsh/LZ-{id}'
       - In AGENTS.md Do Not Touch, append to the go.sum line the tidy exception
@@ -432,4 +432,133 @@ tasks:
     parallelizable: true
     agent_role: release-engineer
     estimated_effort: M
+    priority: P2
+
+  - id: LZ-116
+    title: Tighten directory creation mode in synthesis writer
+    goal: Change the synthesis output directory mode from 0755 to 0750 and cover it with a test
+    context: |
+      gosec G301 flags os.MkdirAll with 0755. For a security tool, output
+      directories should not be world-readable or world-executable. 0750 is
+      the correct mode.
+    files:
+      - pkg/synthesis/hcl.go
+      - pkg/synthesis/hcl_test.go
+    steps:
+      - In pkg/synthesis/hcl.go around line 111, change 'os.MkdirAll(dir, 0755)' to 'os.MkdirAll(dir, 0750)'
+      - Add one test asserting the resulting directory mode is 0750
+      - Run the synthesis test suite to verify
+    commands:
+      - go test -race -count=1 ./pkg/synthesis/...
+      - gosec -exclude-dir=.gomodcache ./pkg/synthesis/...
+    tests:
+      - New test asserts the created directory mode is 0750
+      - gosec no longer reports G301 for pkg/synthesis/hcl.go
+      - All existing synthesis tests still pass
+    done_criteria:
+      - os.MkdirAll in pkg/synthesis/hcl.go uses 0750
+      - A test asserts the resulting directory mode is 0750
+    constraints:
+      - Change only the directory mode; do not alter the file mode (0600) or the path-traversal protections
+      - Do not weaken atomic-write behaviour
+    escalation: If the 0750 mode breaks an existing test on any platform, report the failure and stop
+    depends_on: [LZ-102]
+    parallelizable: true
+    agent_role: implementer
+    estimated_effort: S
+    priority: P1
+
+  - id: LZ-117
+    title: Exclude .gomodcache from gosec scans
+    goal: Stop local gosec scans from treating workspace GOMODCACHE as first-party code
+    context: |
+      The sandbox sets GOMODCACHE=$PWD/.gomodcache. gosec then scans dependency
+      sources as first-party code, inflating findings from 2 to 34. Adding
+      -exclude-dir=.gomodcache restores the true finding count.
+    files:
+      - .github/workflows/security.yml
+      - AGENTS.md
+      - DSH.md
+    steps:
+      - Add '-exclude-dir=.gomodcache' to the gosec invocation in .github/workflows/security.yml
+      - In the AGENTS.md sandbox section, add 'When running gosec locally, exclude the workspace GOMODCACHE: gosec -exclude-dir=.gomodcache ./...'
+      - Update any documented gosec commands in DSH.md to include -exclude-dir=.gomodcache
+      - Re-run gosec and confirm the finding count drops from 34 back to 2
+    commands:
+      - grep -rn "gosec" .github/workflows/security.yml AGENTS.md DSH.md
+      - gosec -exclude-dir=.gomodcache ./...
+    tests:
+      - Workflow YAML parses
+      - Local gosec run reports 2 findings, not 34
+    done_criteria:
+      - -exclude-dir=.gomodcache present in the CI gosec invocation
+      - AGENTS.md sandbox section documents the local gosec exclusion
+      - DSH.md gosec commands are consistent
+    constraints:
+      - Do not exclude any directory other than .gomodcache
+      - Do not change the -no-fail or severity policy (that is LZ-108)
+    escalation: If the finding count does not return to 2, report the actual count and stop
+    depends_on: [LZ-102, LZ-104]
+    parallelizable: true
+    agent_role: release-engineer
+    estimated_effort: S
+    priority: P1
+
+  - id: LZ-118
+    title: Prohibit gosec AI flags in CI
+    goal: Document that gosec -ai-* flags are forbidden in LogZero CI
+    context: |
+      gosec's -ai-* flags (for example -ai-api-proxy and the AI fix
+      suggestion features) send source excerpts to third parties. This
+      directly violates LogZero's zero-egress rule.
+    files:
+      - AGENTS.md
+    steps:
+      - Add a bullet to the AGENTS.md Security Rules section stating that gosec's -ai-* flags must never be enabled in CI, that they send source excerpts to third parties and violate the zero-egress rule, and that CI runs gosec with default flags only
+      - Confirm no workflow enables any -ai-* flag
+    commands:
+      - grep -rn "\-ai-" .github/workflows/ AGENTS.md
+    tests:
+      - No -ai-* flag appears in any workflow file
+      - The prohibition is documented under AGENTS.md Security Rules
+    done_criteria:
+      - AGENTS.md Security Rules prohibits gosec -ai-* flags in CI
+      - grep finds no -ai-* usage in .github/workflows/
+    constraints:
+      - Documentation-only change; do not alter workflow behaviour
+      - Do not add any new gosec flags beyond default behaviour
+    escalation: None
+    depends_on: [LZ-117]
+    parallelizable: true
+    agent_role: docs-writer
+    estimated_effort: S
+    priority: P2
+
+  - id: LZ-119
+    title: Document govulncheck PATH resolution
+    goal: Prevent agents from picking up the broken MacPorts govulncheck build
+    context: |
+      /opt/local/bin/govulncheck (MacPorts) may be compiled against an older
+      Go toolchain and fail. The correct binary is ~/go/bin/govulncheck.
+    files:
+      - DSH.md
+    steps:
+      - In the DSH.md pre-flight section, document that govulncheck must resolve to ~/go/bin/govulncheck, not /opt/local/bin/govulncheck
+      - Note that the MacPorts build may be compiled against an older Go toolchain and fail
+      - Document the verification command 'which -a govulncheck' and the expected first result
+    commands:
+      - which -a govulncheck
+    tests:
+      - DSH.md pre-flight documents the expected govulncheck path
+      - The verification command is present in DSH.md
+    done_criteria:
+      - DSH.md pre-flight explains the govulncheck PATH requirement and how to verify it
+    constraints:
+      - Documentation-only change
+      - Do not modify the govulncheck install version pin (that is LZ-104)
+    escalation: None
+    depends_on: [LZ-104]
+    parallelizable: true
+    agent_role: docs-writer
+    estimated_effort: S
     priority: P2

@@ -116,7 +116,7 @@ CloudTrail JSON (file or live API)
 
 - **AWS API calls are limited to live-mode CloudTrail ingestion.** Live mode uses the operator's existing AWS credentials and only calls CloudTrail APIs. This is not "egress" in the LogZero sense — it is the operator's own AWS account. Document this distinction clearly wherever the zero-egress claim appears.
 
-- **No `go install` for LogZero itself.** LogZero is distributed only as pre-built signed binaries and a hardened container image. Do not add `go install github.com/Pliauga/logzero@latest` as a supported installation path. (Note: this rule is about *how users install LogZero*. It does **not** apply to tooling that agents or CI install — see [[DSH.md](http://DSH.md)]([DSH.md](http://DSH.md)) for agent tooling policy.)
+- **No `go install` for LogZero itself.** LogZero is distributed only as pre-built signed binaries and a hardened container image. Do not add `go install github.com/Pliauga/logzero@latest` as a supported installation path. (Note: this rule is about *how users install LogZero*. It does **not** apply to tooling that agents or CI install — see [DSH.md](DSH.md) for agent tooling policy.)
 
 - **Strict input sanitization.** All CloudTrail input is treated as untrusted. PII fields are excluded during unmarshal. ARNs are validated against a multi-partition allowlist `aws`, `aws-us-gov`, `aws-cn`).
 
