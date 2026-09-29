@@ -114,13 +114,13 @@ tasks:
       - SECURITY-BASELINE.md
     steps:
       - Confirm gosec is installed ('gosec --version')
-      - Run 'gosec ./...'
+      - Run 'gosec -exclude-dir=.gomodcache ./...'
       - Confirm govulncheck is installed ('govulncheck --version')
       - Run 'govulncheck ./...'
       - Write findings to SECURITY-BASELINE.md at repo root
     commands:
       - gosec --version
-      - gosec ./...
+      - gosec -exclude-dir=.gomodcache ./...
       - govulncheck --version
       - govulncheck ./...
     tests:
@@ -562,3 +562,83 @@ tasks:
     agent_role: docs-writer
     estimated_effort: S
     priority: P2
+
+  - id: LZ-120
+    title: Migrate dockers and docker_manifests to dockers_v2
+    goal: Adopt dockers_v2 before goreleaser removes the deprecated form
+    context: |
+      goreleaser v2.x warns "dockers and docker_manifests are being phased
+      out ... replaced by dockers_v2". The current .goreleaser.yaml uses the
+      old form. goreleaser check currently exits 2 due to these deprecations
+      plus the archives.format deprecation (archives.format is already fixed
+      on dev; dockers/docker_manifests remain). Migrating them makes
+      'goreleaser check' exit 0, which is required before LZ-113 can validate
+      the release pipeline meaningfully.
+    files:
+      - .goreleaser.yaml
+    steps:
+      - Read the goreleaser v2.x release notes and docs for dockers_v2 field mapping
+      - Rewrite the 'dockers:' and 'docker_manifests:' blocks using 'dockers_v2:' per the current schema
+      - Preserve the image templates, labels, platforms, and manifest targets exactly
+      - Run 'goreleaser check' and confirm exit 0 with no dockers/docker_manifests deprecation warnings
+      - Run 'goreleaser build --snapshot --clean --skip=publish' to confirm the build still works
+    commands:
+      - goreleaser check
+      - goreleaser build --snapshot --clean --skip=publish
+    tests:
+      - goreleaser check exits 0
+      - No 'dockers and docker_manifests' deprecation warning in goreleaser check output
+      - Snapshot build still produces multi-arch binaries
+    done_criteria:
+      - .goreleaser.yaml uses dockers_v2
+      - goreleaser check exits 0
+      - Image names, labels, and manifest targets unchanged
+    constraints:
+      - Do not change image names or labels
+      - Do not modify archives, builds, signs, or docker_signs blocks
+      - Snapshot only, do not release
+    escalation: If dockers_v2 fields differ from expectations or the migration would change release behaviour, propose the mapping and stop
+    depends_on: [LZ-103, LZ-107]
+    parallelizable: true
+    agent_role: release-engineer
+    estimated_effort: M
+    priority: P1
+
+  - id: LZ-121
+    title: Fix stale distroless digest in production Dockerfile stage
+    goal: Resolve the pinned digest mismatch in the production stage
+    context: |
+      LZ-106's verification revealed that the production stage digest
+      sha256:6ec5aa99dc335b8d8f71b85c9088c2ff8637b56a7d3e2e01a543e736ab44b519
+      for gcr.io/distroless/static:nonroot no longer resolves ('docker: not
+      found'). This breaks full 'docker build' end to end. The builder stage
+      (pinned in LZ-106) resolves correctly; only the production stage is
+      stale.
+    files:
+      - Dockerfile
+    steps:
+      - Run 'docker pull gcr.io/distroless/static:nonroot' to fetch the current image
+      - Run 'docker inspect --format="{{index .RepoDigests 0}}" gcr.io/distroless/static:nonroot' to read the current digest
+      - Update the Dockerfile production stage FROM line with the fresh digest
+      - Run 'docker build -t logzero-lz121-test .' to verify both stages resolve and build end to end
+      - Remove the test image with 'docker rmi logzero-lz121-test'
+    commands:
+      - docker pull gcr.io/distroless/static:nonroot
+      - docker inspect --format='{{index .RepoDigests 0}}' gcr.io/distroless/static:nonroot
+      - docker build -t logzero-lz121-test .
+    tests:
+      - docker build completes end to end (both stages)
+      - Resulting image is small (distroless sanity check; expect < 5 MB)
+    done_criteria:
+      - Production stage digest resolves
+      - Full docker build succeeds end to end
+    constraints:
+      - Do not change the builder stage — LZ-106 pinned that
+      - Do not remove the digest pin; replace it with a fresh, resolving digest
+      - Do not change the nonroot user, entrypoint, or any other Dockerfile directive
+    escalation: If the distroless repo has moved to a new tag scheme or 'nonroot' is deprecated, report and stop
+    depends_on: [LZ-106]
+    parallelizable: true
+    agent_role: release-engineer
+    estimated_effort: S
+    priority: P1
