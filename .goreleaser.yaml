@@ -52,6 +52,15 @@ signs:
       - "--output-signature=${signature}"
       - "${artifact}"
 
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    args:
+      - sign
+      - --yes
+      - "${artifact}@${digest}"
+    output: true
+
 dockers:
   - image_templates:
       - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
