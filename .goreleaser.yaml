@@ -28,19 +28,6 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
 
-sboms:
-  - artifacts: archive
-    args: ["$artifact", "--output", "spdx-json=$document"]
-
-signs:
-  - artifacts: checksum
-    args:
-      - "sign-blob"
-      - "--yes" # Keyless signing via Sigstore OIDC
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
-      - "${artifact}"
-
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -50,6 +37,58 @@ archives:
 
 checksum:
   name_template: 'checksums.txt'
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    args: ["$artifact", "--output", "spdx-json=$document"]
+
+signs:
+  - artifacts: checksum
+    args:
+      - "sign-blob"
+      - "--yes"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/logzero/logzero:{{ .Version }}-amd64"
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/logzero/logzero"
+    dockerfile: Dockerfile
+    goarch: amd64
+  - image_templates:
+      - "ghcr.io/logzero/logzero:{{ .Version }}-arm64"
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/logzero/logzero"
+    dockerfile: Dockerfile
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/logzero/logzero:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/logzero/logzero:{{ .Version }}-amd64"
+      - "ghcr.io/logzero/logzero:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/logzero/logzero:latest"
+    image_templates:
+      - "ghcr.io/logzero/logzero:{{ .Version }}-amd64"
+      - "ghcr.io/logzero/logzero:{{ .Version }}-arm64"
 
 changelog:
   sort: asc

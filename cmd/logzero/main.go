@@ -14,6 +14,12 @@ import (
 )
 
 var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+var (
 	roleARN    string
 	since      string
 	timeWindow string
@@ -34,6 +40,7 @@ func newRootCmd() *cobra.Command {
 		Long: `logzero is a zero-egress, client-side CLI tool that observes AWS CloudTrail
 API event streams (live or offline fixtures) and generates tightened, least-privilege
 Terraform IAM policy documents (data "aws_iam_policy_document").`,
+		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
 		RunE: runRootCmd,
 	}
 

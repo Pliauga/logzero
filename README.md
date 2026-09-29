@@ -1,65 +1,110 @@
-# 🚧 Work in Progress (WIP)
-
-> **Project Status:** This project is currently in active development. Features are incomplete, and things will change or break. Not ready for use!
-
 # LogZero
 
-LogZero is a zero-egress CLI tool that observes AWS CloudTrail API events (live or offline log fixtures) and synthesizes tightened, least-privilege Terraform IAM policy documents (`data "aws_iam_policy_document"` HCL or IAM JSON).
+> **Status:** Active development. Core engine functional; distribution pipeline in progress.
 
-## Key Features
+LogZero is a **zero-egress CLI tool** that observes AWS CloudTrail API events (live or offline log fixtures) and synthesizes tightened, least-privilege Terraform IAM policy documents.
 
-- **Offline & Live Ingestion**: Process local CloudTrail JSON exports or query the AWS CloudTrail API directly.
-- **Deterministic HCL Generation**: Synthesizes clean Terraform data blocks using HashiCorp's `hclwrite` engine.
-- **Zero Egress**: All parsing, normalization, and policy generation happen locally in memory.
+**No data leaves your environment.** All parsing, normalization, and policy generation happen locally in memory.
+
+## Features
+
+- **Zero Egress** — All processing happens locally. No telemetry, no network egress, no third-party data sharing.
+- **Offline & Live Ingestion** — Process local CloudTrail JSON exports or query the AWS CloudTrail API directly.
+- **Deterministic Policy Synthesis** — Generates clean IAM JSON policies or Terraform HCL `data "aws_iam_policy_document"` blocks.
+- **Multi-Partition Support** — Handles `aws`, `aws-us-gov`, `aws-cn`, `aws-iso`, and `aws-iso-b` partitions.
+- **Input Sanitization** — ARN validation, PII exclusion from synthesized structs, and injection-safe string handling.
+- **Fuzz Tested** — Parser includes fuzz testing for robustness against malformed inputs.
 
 ## Installation
 
+### From GitHub Releases (Recommended)
+
+Download the latest signed binary from [GitHub Releases](https://github.com/logzero/logzero/releases).
+
+All release artifacts are signed with [Cosign](https://github.com/sigstore/cosign) and include SHA256 checksums and SBOMs.
+
 ```bash
-go install github.com/logzero/logzero/cmd/logzero@latest
+# Verify signature (optional but recommended)
+cosign verify-blob \
+  --certificate checksums.txt.cert \
+  --signature checksums.txt.sig \
+  checksums.txt
 ```
 
-## CLI Usage
+### From Source
 
-### 1. Offline JSON Fixture
 ```bash
-# Generate Terraform HCL from a local CloudTrail export
-logzero --file ./testdata/sample_cloudtrail.json --output policy.tf --name app_policy
+git clone https://github.com/logzero/logzero.git
+cd logzero
+make build
+# Binary at ./bin/logzero
 ```
 
-### 2. Live AWS CloudTrail Query
+### Docker
+
 ```bash
-# Query the last 2 hours of events for a specific IAM role
-logzero --role-arn "arn:aws:iam::123456789012:role/AppRole" --since 2h --format hcl
+docker run --rm -v $(pwd):/data ghcr.io/logzero/logzero:latest --file /data/cloudtrail.json --format hcl
 ```
 
-## Library Example
+> **Note:** `go install` is **not recommended** for production use due to supply-chain risks in the Go module proxy ecosystem.
 
-```go
-package main
+## Quick Start
 
-import (
-	"fmt"
+### Offline: Analyze a CloudTrail JSON export
 
-	"github.com/logzero/logzero/pkg/aws"
-	"github.com/logzero/logzero/pkg/parser"
-	"github.com/logzero/logzero/pkg/synthesis"
-)
+```bash
+# Generate Terraform HCL (default)
+logzero --file ./cloudtrail-export.json
 
-func main() {
-	aggregator := parser.NewActionAggregator()
+# Generate IAM JSON policy
+logzero --file ./cloudtrail-export.json --format json
 
-	// Ingest events from a local CloudTrail JSON fixture
-	count, err := aws.IngestFromFile("events.json", aggregator)
-	if err != nil {
-		panic(err)
-	}
-
-	statements := aggregator.Statements()
-	hclBytes, err := synthesis.GenerateHCLPolicy("tightened_policy", statements)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Processed %d events.\n\n%s\n", count, string(hclBytes))
-}
+# Write output to file
+logzero --file ./cloudtrail-export.json --output policy.tf --name app_role_policy
 ```
+
+### Live: Query AWS CloudTrail API
+
+```bash
+# Query the last hour of events (default)
+logzero
+
+# Query events for a specific role
+logzero --role-arn "arn:aws:iam::123456789012:role/AppRole" --since 2h
+
+# Custom time window
+logzero --start-time 2026-09-05T12:00:00Z --end-time 2026-09-05T14:00:00Z
+```
+
+## Architecture
+
+```
+CloudTrail JSON ──→ Ingestion ──→ Normalization ──→ Aggregation ──→ Synthesis ──→ IAM JSON / HCL
+ (file/API)       (pkg/aws)     (pkg/parser)     (pkg/parser)    (pkg/synthesis)
+```
+
+| Package | Purpose |
+|---------|------------------------------------------|
+| `pkg/models` | Core data structures, ARN validation, sanitization |
+| `pkg/aws` | CloudTrail file/reader/API ingestion |
+| `pkg/parser` | Event normalization, action aggregation |
+| `pkg/synthesis` | IAM JSON + Terraform HCL generation |
+| `cmd/logzero` | CLI entrypoint with Cobra |
+
+## Development
+
+```bash
+make test       # Run tests with race detector
+make lint       # go vet + golangci-lint
+make fuzz       # Fuzz test the parser (30s)
+make vulncheck  # govulncheck
+make build      # Static binary → bin/logzero
+```
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for security policy and vulnerability reporting.
+
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.
