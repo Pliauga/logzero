@@ -127,3 +127,24 @@ func TestAtomicWriteAndFilePermissions(t *testing.T) {
 		t.Errorf("Fallback buffer did not receive content: %s", buf.String())
 	}
 }
+
+func TestOutputDirectoryPermissions(t *testing.T) {
+	tempDir := t.TempDir()
+	outputDir := filepath.Join(tempDir, "generated")
+	targetFile := filepath.Join(outputDir, "policy.tf")
+
+	content := []byte(`data "aws_iam_policy_document" "dir_perm" {}`)
+	if err := WriteOutput(targetFile, content, nil); err != nil {
+		t.Fatalf("WriteOutput failed: %v", err)
+	}
+
+	info, err := os.Stat(outputDir)
+	if err != nil {
+		t.Fatalf("Failed to stat output directory: %v", err)
+	}
+
+	perm := info.Mode().Perm()
+	if perm != 0750 {
+		t.Errorf("Expected output directory permissions 0750, got %o", perm)
+	}
+}
