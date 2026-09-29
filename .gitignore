@@ -33,3 +33,7 @@ Thumbs.db
 *.key
 aws_credentials
 aws_config
+
+# DSH sandbox caches
+.gocache/
+.gomodcache/
