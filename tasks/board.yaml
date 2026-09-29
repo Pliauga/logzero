@@ -22,15 +22,23 @@ tasks:
       - pkg/synthesis/hcl.go
       - pkg/synthesis/hcl_test.go
       - .goreleaser.yaml
+      - .github/workflows/release.yml
+      - .github/workflows/security.yml
       - README.md
       - AGENTS.md
+      - CHANGELOG.md
     steps:
       - Update 'module github.com/logzero/logzero' to 'module github.com/Pliauga/logzero' in go.mod
       - Replace all 'github.com/logzero/logzero' import paths with 'github.com/Pliauga/logzero'
       - Replace OCI label URLs in .goreleaser.yaml from 'https://github.com/logzero/logzero' to 'https://github.com/Pliauga/logzero'
       - Replace GHCR image paths from 'ghcr.io/logzero/logzero' to 'ghcr.io/pliauga/logzero' (GHCR requires lowercase owner)
+      - Update the same GHCR path anywhere it appears in .github/workflows/release.yml
       - Update clone URL and Releases URL in README.md to 'https://github.com/Pliauga/logzero'
-      - Update the go install example in AGENTS.md to 'github.com/Pliauga/logzero@latest'
+      - In AGENTS.md line 80, replace 'github.com/logzero/logzero' with 'github.com/Pliauga/logzero' and fix the broken markdown link '[DSH.md](http://DSH.md)' to '[DSH.md](DSH.md)'
+      - In AGENTS.md, change 'Go 1.22' to 'Go 1.25'
+      - In AGENTS.md, change all 'dsn/LZ-{id}' to 'dsh/LZ-{id}'
+      - In AGENTS.md Do Not Touch, append to the go.sum line the tidy exception
+      - Add an [Unreleased] entry to CHANGELOG.md describing the module path change
       - Run 'go mod tidy'
       - Run 'go build ./...'
       - Run 'go test -race -count=1 ./...'
@@ -53,6 +61,7 @@ tasks:
     constraints:
       - Do NOT change the GitHub repo name again
       - Do NOT change the module path to all-lowercase ('pliauga') — match the URL exactly
+      - Do NOT add a go install example anywhere — the rule in AGENTS.md is a prohibition, not an example
       - Preserve all other code structure
     escalation: If grep shows files not listed above, list them before editing
     depends_on: []
@@ -97,13 +106,14 @@ tasks:
     title: Run security scanning tools and record baseline
     goal: Execute gosec and govulncheck and record the current findings baseline
     context: Security baseline. Tools must already be installed (see DSH.md pre-flight).
-    files: []
+    files:
+      - SECURITY-BASELINE.md
     steps:
       - Confirm gosec is installed ('gosec --version')
       - Run 'gosec ./...'
-      - Confirm govulncheck is installed ('govulncheck -version')
+      - Confirm govulncheck is installed ('govulncheck --version')
       - Run 'govulncheck ./...'
-      - Write findings to docs/security-baseline.md
+      - Write findings to SECURITY-BASELINE.md at repo root
     commands:
       - gosec --version
       - gosec ./...
@@ -113,7 +123,7 @@ tasks:
       - gosec runs successfully
       - govulncheck runs successfully
     done_criteria:
-      - Baseline documented in docs/security-baseline.md
+      - Baseline documented in SECURITY-BASELINE.md
       - Any HIGH/CRITICAL findings have a follow-up task ID
     constraints:
       - Do not install tools inside this task — they must be pre-installed
@@ -128,7 +138,7 @@ tasks:
   - id: LZ-103
     title: Validate GoReleaser configuration
     goal: Verify .goreleaser.yaml is valid and snapshot build succeeds
-    context: Distribution pipeline validation
+    context: Distribution pipeline validation. Requires goreleaser pre-installed.
     files:
       - .goreleaser.yaml
     steps:
@@ -147,7 +157,7 @@ tasks:
     constraints:
       - Do not push any releases
       - Snapshot only
-    escalation: If goreleaser check fails, report the error and propose a fix
+    escalation: If goreleaser is not installed, report and stop
     depends_on: [LZ-100, LZ-101]
     parallelizable: true
     agent_role: release-engineer
@@ -161,9 +171,9 @@ tasks:
     files:
       - .github/workflows/security.yml
     steps:
-      - Determine the pinned versions from local 'gosec --version' and 'govulncheck -version'
-      - Replace gosec '@latest' with '@<resolved version>'
-      - Replace govulncheck '@latest' with '@<resolved version>'
+      - Get resolved versions from LZ-102 baseline output ('gosec --version', 'govulncheck --version')
+      - Replace gosec '@latest' with the resolved version
+      - Replace govulncheck '@latest' with the resolved version
       - Verify YAML is valid
     commands:
       - grep -n "go install" .github/workflows/security.yml
@@ -174,7 +184,7 @@ tasks:
     constraints:
       - Do not change any other CI behaviour
     escalation: None
-    depends_on: [LZ-100, LZ-101]
+    depends_on: [LZ-100, LZ-101, LZ-102]
     parallelizable: true
     agent_role: release-engineer
     estimated_effort: S
@@ -183,13 +193,13 @@ tasks:
   - id: LZ-105
     title: Add container image scanning to release workflow
     goal: Scan the built container image for vulnerabilities before publishing
-    context: Verify whether Grype scanning exists in release.yml; add if missing
+    context: release.yml currently has Cosign and Syft but no Grype/Trivy image scanning
     files:
       - .github/workflows/release.yml
     steps:
-      - Check whether Grype or Trivy is already invoked in release.yml
-      - If missing, add a step that runs 'grype ghcr.io/pliauga/logzero:{version} --fail-on high'
-      - Add the scan between image push and release publication
+      - Confirm Grype or Trivy is not already invoked in release.yml
+      - Add a step that runs 'grype ghcr.io/pliauga/logzero:{version} --fail-on high'
+      - Place the scan between image push and release publication
     commands:
       - grep -n "grype\|trivy" .github/workflows/release.yml
     tests:
@@ -208,21 +218,21 @@ tasks:
 
   - id: LZ-106
     title: Pin builder image by digest in Dockerfile
-    goal: Pin the golang builder stage by digest to prevent supply-chain drift
-    context: Dockerfile uses 'FROM golang:1.22-alpine' without a digest for the builder
+    goal: Pin the golang builder stage by digest and align version to 1.25
+    context: Dockerfile uses 'FROM golang:1.22-alpine' which mismatches go.mod's Go 1.25.0
     files:
       - Dockerfile
     steps:
-      - Resolve the current digest for golang:1.22-alpine via 'docker pull' and 'docker inspect'
-      - Replace the builder FROM line with 'FROM golang:1.22-alpine@sha256:...'
+      - Resolve the current digest for golang:1.25-alpine via 'docker pull' and 'docker inspect'
+      - Replace the builder FROM line with 'FROM golang:1.25-alpine@sha256:...'
       - Verify 'docker build .' still succeeds locally
     commands:
-      - docker pull golang:1.22-alpine
-      - docker inspect --format='{{index .RepoDigests 0}}' golang:1.22-alpine
+      - docker pull golang:1.25-alpine
+      - docker inspect --format='{{index .RepoDigests 0}}' golang:1.25-alpine
     tests:
       - Dockerfile builds successfully
     done_criteria:
-      - Builder image is digest-pinned
+      - Builder image is digest-pinned and uses Go 1.25
     constraints:
       - Do not change the production (distroless) stage
     escalation: If the digest cannot be resolved offline, document the command in a comment
@@ -291,6 +301,7 @@ tasks:
     files:
       - pkg/synthesis/hcl_test.go
     steps:
+      - Capture pre-change coverage with 'go test -race -coverprofile=coverage.out ./pkg/synthesis/...' then 'go tool cover -func=coverage.out'
       - Add test for single-action single-resource statement
       - Add test for wildcard-only resources
       - Add test for GovCloud ARNs in HCL output
@@ -298,14 +309,17 @@ tasks:
       - Add test for very long resource ARNs
       - Add test for actions with special characters
       - Run tests to verify
+      - Capture post-change coverage and include both numbers in the report
     commands:
+      - go test -race -coverprofile=coverage.out ./pkg/synthesis/...
+      - go tool cover -func=coverage.out
       - go test -race -v ./pkg/synthesis/...
     tests:
       - All new tests pass
       - No regressions in existing tests
     done_criteria:
-      - At least 6 new test cases added
-      - Coverage improved (report before/after)
+      - Edge case tests added covering the scenarios listed in steps
+      - Coverage before/after reported
     constraints:
       - Do not modify production code unless a test reveals a bug
     escalation: If a test reveals a bug, document it and create a follow-up task
@@ -318,21 +332,29 @@ tasks:
   - id: LZ-110
     title: Add integration tests across all testdata fixtures
     goal: Ensure every fixture produces valid output through the full pipeline
-    context: testdata/ contains 5 CloudTrail fixtures with different formats and edge cases
+    context: |
+      testdata/ contains 5 CloudTrail fixtures:
+      - sample_cloudtrail.json (2 records)
+      - cloudtrail_fixture.json (7 records)
+      - standard-workload.json
+      - govcloud-multi-partition.json
+      - edge-case-sanitization.json
+      There is no empty or single-event fixture.
     files:
       - cmd/logzero/main_test.go
     steps:
-      - Add test that runs each fixture through IngestFromFile → Statements → GenerateHCLPolicy
+      - Add test that runs each of the 5 fixtures through IngestFromFile to Statements to GenerateHCLPolicy
       - Verify edge-case-sanitization.json sanitizes malicious eventName
       - Verify govcloud-multi-partition.json handles aws-us-gov and aws-cn partitions
       - Verify standard-workload.json filters AccessDenied events
-      - Verify empty and single-event fixtures
+      - Add a synthetic empty-input test case (inline, not a new fixture file)
     commands:
       - go test -race -v ./cmd/logzero/...
     tests:
-      - All fixtures produce valid output
+      - All 5 fixtures produce valid output
       - Malicious input is sanitized
       - Error events are excluded
+      - Empty input is handled without panic
     done_criteria:
       - Integration test covers all 5 testdata fixtures
       - No panics on any input
@@ -343,34 +365,6 @@ tasks:
     parallelizable: true
     agent_role: implementer
     estimated_effort: M
-    priority: P1
-
-  - id: LZ-111
-    title: Untrack .DS_Store and .idea artifacts
-    goal: Remove macOS and JetBrains IDE artifacts from git tracking
-    context: Verify first whether these files are actually tracked
-    files:
-      - .gitignore
-    steps:
-      - Run 'git ls-files | grep -E "\\.DS_Store|\\.idea"' to confirm
-      - If tracked, run 'git rm -r --cached .idea/' and untrack each .DS_Store
-      - Ensure .gitignore covers .DS_Store, .idea/, and .vscode/
-      - Commit the removal
-    commands:
-      - git ls-files | grep -E '\.DS_Store|\.idea'
-      - git rm -r --cached .idea/
-    tests:
-      - 'git status' shows removed files staged
-      - Files still exist on disk
-    done_criteria:
-      - .idea/ and .DS_Store no longer tracked
-    constraints:
-      - Do not delete files from disk, only untrack
-    escalation: If no files are tracked, mark task as no-op and close
-    depends_on: [LZ-101]
-    parallelizable: true
-    agent_role: implementer
-    estimated_effort: S
     priority: P1
 
   - id: LZ-112
@@ -399,23 +393,25 @@ tasks:
     priority: P2
 
   - id: LZ-113
-    title: Add goreleaser release dry-run to CI
-    goal: Validate the full release pipeline without publishing
-    context: release.yml runs on tag push; add a dry-run on main branch merges
+    title: Add goreleaser snapshot validation to CI
+    goal: Validate the release pipeline on every PR without publishing
+    context: Catch GoReleaser config regressions before tags are cut
     files:
       - .github/workflows/security.yml
     steps:
-      - Add a job that runs 'goreleaser release --snapshot --clean --skip=publish'
-      - Gate it on push to main
+      - Add a job 'goreleaser-snapshot' that runs on pull_request to dev and main
+      - The job runs 'goreleaser release --snapshot --clean --skip=publish'
       - Verify SBOM and signing steps are skipped or stubbed in snapshot mode
     commands:
       - goreleaser release --snapshot --clean --skip=publish
     tests:
-      - Dry-run completes in CI
+      - Workflow YAML parses
+      - Dry-run completes locally before commit
     done_criteria:
-      - Dry-run job present in security.yml
+      - Snapshot validation job present in security.yml
     constraints:
       - Do not publish anything from this job
+      - Do not gate on pushes to main (agents do not push to main)
     escalation: None
     depends_on: [LZ-103, LZ-107]
     parallelizable: true
