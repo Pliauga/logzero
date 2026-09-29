@@ -36,6 +36,10 @@ goreleaser --version
 docker --version
 ```
 
+When running gosec locally in the sandbox, exclude the workspace GOMODCACHE:
+`gosec -exclude-dir=.gomodcache ./...`. This keeps local findings consistent
+with CI and avoids scanning dependency sources as first-party code.
+
 Ensure a `dev` branch exists:
 
 ```
