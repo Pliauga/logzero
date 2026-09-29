@@ -38,19 +38,23 @@ tasks:
       - In AGENTS.md, change 'Go 1.22' to 'Go 1.25'
       - In AGENTS.md, change all 'dsn/LZ-{id}' to 'dsh/LZ-{id}'
       - In AGENTS.md Do Not Touch, append to the go.sum line the tidy exception
+      - In .github/workflows/security.yml, change go-version '1.22' to '1.25' to match go.mod
+      - In .github/workflows/release.yml, change go-version '1.22' to '1.25' to match go.mod
       - Add an [Unreleased] entry to CHANGELOG.md describing the module path change
       - Run 'go mod tidy'
       - Run 'go build ./...'
       - Run 'go test -race -count=1 ./...'
     commands:
-      - grep -rn "github.com/logzero/logzero" --include="*.go" --include="*.yaml" --include="*.yml" --include="*.md" . | grep -v "^./.git/"
-      - grep -rn "ghcr.io/logzero" .goreleaser.yaml .github/workflows/ | grep -v "^./.git/"
+      - grep -rn "github.com/logzero/logzero" --include="*.go" --include="*.yaml" --include="*.yml" --include="*.md" . | grep -v "^./.git/" | grep -v "^./tasks/board.yaml"
+      - grep -rn "ghcr.io/logzero" .goreleaser.yaml .github/workflows/ .github/ README.md | grep -v "^./.git/"
+      - grep -rn "1\.22" .github/workflows/
       - go mod tidy
       - go build ./...
       - go test -race -count=1 ./...
     tests:
-      - No remaining references to 'github.com/logzero/logzero' anywhere in source, config, or docs
+      - No remaining references to 'github.com/logzero/logzero' in .go source, config, or user-facing docs (tasks/board.yaml excluded — it is a historical audit trail)
       - No remaining references to 'ghcr.io/logzero' anywhere
+      - No '1.22' remains in .github/workflows/
       - go build succeeds
       - go test succeeds
     done_criteria:
@@ -157,6 +161,7 @@ tasks:
     constraints:
       - Do not push any releases
       - Snapshot only
+      - Requires goreleaser pre-installed
     escalation: If goreleaser is not installed, report and stop
     depends_on: [LZ-100, LZ-101]
     parallelizable: true
@@ -165,24 +170,29 @@ tasks:
     priority: P1
 
   - id: LZ-104
-    title: Pin gosec and govulncheck versions in security.yml
-    goal: Replace '@latest' with pinned versions for reproducible CI
-    context: security.yml currently uses go install ...@latest, which contradicts LogZero's supply-chain posture
+    title: Pin gosec and govulncheck versions in security.yml and DSH.md
+    goal: Replace '@latest' with pinned versions for reproducible CI and reproducible agent pre-flight
+    context: security.yml and DSH.md both use go install ...@latest, which contradicts LogZero's supply-chain posture
     files:
       - .github/workflows/security.yml
+      - DSH.md
     steps:
       - Get resolved versions from LZ-102 baseline output ('gosec --version', 'govulncheck --version')
-      - Replace gosec '@latest' with the resolved version
-      - Replace govulncheck '@latest' with the resolved version
+      - Replace gosec '@latest' with the resolved version in security.yml
+      - Replace govulncheck '@latest' with the resolved version in security.yml
+      - In the DSH.md pre-flight section, replace '@latest' on the gosec and govulncheck install lines with the same resolved versions used in security.yml
       - Verify YAML is valid
     commands:
       - grep -n "go install" .github/workflows/security.yml
+      - grep -n "@latest" DSH.md
     tests:
       - No '@latest' remains in security.yml
+      - No '@latest' remains on the gosec/govulncheck install lines in DSH.md
     done_criteria:
-      - gosec and govulncheck are version-pinned in CI
+      - gosec and govulncheck are version-pinned in CI and in the DSH.md pre-flight
     constraints:
       - Do not change any other CI behaviour
+      - Version resolution happens once (LZ-102) and is applied in both places
     escalation: None
     depends_on: [LZ-100, LZ-101, LZ-102]
     parallelizable: true
@@ -260,7 +270,8 @@ tasks:
       - docker_signs block present and validated
     constraints:
       - Snapshot only, do not release
-    escalation: None
+      - Requires goreleaser pre-installed; if absent, report blocked and stop
+    escalation: If goreleaser is not installed, report and stop
     depends_on: [LZ-103]
     parallelizable: true
     agent_role: release-engineer
@@ -322,6 +333,7 @@ tasks:
       - Coverage before/after reported
     constraints:
       - Do not modify production code unless a test reveals a bug
+      - Note: pkg/synthesis/hcl_test.go was also touched by LZ-100 (import path rewrite); sessions are serialized so the overlap is theoretical, but rebase onto dev before starting
     escalation: If a test reveals a bug, document it and create a follow-up task
     depends_on: [LZ-101]
     parallelizable: true
@@ -360,6 +372,7 @@ tasks:
       - No panics on any input
     constraints:
       - Do not modify testdata fixtures
+      - Note: cmd/logzero/main_test.go was also touched by LZ-100 (import path rewrite); sessions are serialized so the overlap is theoretical, but rebase onto dev before starting
     escalation: If a fixture causes a panic, fix the parser and add a regression test
     depends_on: [LZ-101]
     parallelizable: true
@@ -401,6 +414,7 @@ tasks:
     steps:
       - Add a job 'goreleaser-snapshot' that runs on pull_request to dev and main
       - The job runs 'goreleaser release --snapshot --clean --skip=publish'
+      - Hint: the docker/buildx and docker_manifests sections in .goreleaser.yaml may require extending the skip list (e.g. '--skip=publish,docker,sign,sbom') so the snapshot run does not attempt an image push; determine the minimum working skip list empirically
       - Verify SBOM and signing steps are skipped or stubbed in snapshot mode
     commands:
       - goreleaser release --snapshot --clean --skip=publish
@@ -412,7 +426,8 @@ tasks:
     constraints:
       - Do not publish anything from this job
       - Do not gate on pushes to main (agents do not push to main)
-    escalation: None
+      - Requires goreleaser pre-installed; if absent, report blocked and stop
+    escalation: If goreleaser is not installed, report and stop
     depends_on: [LZ-103, LZ-107]
     parallelizable: true
     agent_role: release-engineer
