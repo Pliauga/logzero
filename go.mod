@@ -2,6 +2,8 @@ module github.com/Pliauga/logzero
 
 go 1.26.0
 
+toolchain go1.26.9
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.30.5
 	github.com/aws/aws-sdk-go-v2/config v1.27.33
