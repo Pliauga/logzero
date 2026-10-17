@@ -24,9 +24,9 @@ The tool's core promise is that **no security data leaves the operator's environ
 
 - `testdata/` — Read-only CloudTrail fixtures (do not modify)
 
-- `agents/` — DSH agent role definitions
+- `.dev/agents/` — DSH agent role definitions
 
-- `tasks/` — DSH task board
+- `.dev/tasks/` — DSH task board
 
 ## Tech Stack
 
@@ -209,7 +209,7 @@ test(aws): add NDJSON edge case coverage [LZ-101]
 
 - Signed release artifacts `checksums.txt`, `.sig`, `.cert`, SBOMs) — immutable
 
-- `initial-audit.md` — historical reference, do not modify or delete
+- `.dev/initial-audit.md` — historical reference, do not modify or delete
 
 - `cmd/logzero/main.go` version variables — populated by ldflags at build time; do not hardcode values
 

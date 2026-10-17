@@ -1,6 +1,6 @@
 # LogZero — DSH Handoff
 
-This file is the entry point for a DeepSeek Harness session working on LogZero. Read it first, then read `AGENTS.md`, then `tasks/board.yaml`.
+This file is the entry point for a DeepSeek Harness session working on LogZero. Read it first, then read `.dev/AGENTS.md`, then `.dev/tasks/board.yaml`.
 
 ## Current State
 
@@ -32,12 +32,12 @@ This file is the entry point for a DeepSeek Harness session working on LogZero. 
 
 ## What Remains
 
-See `tasks/board.yaml` for the authoritative list. The P0 alignment and P1 hardening tasks (including Grype, goreleaser v2 migration, distroless digest, and synthesis edge-case tests) are complete. Remaining work focuses on broader integration testing (LZ-110) and deeper code hardening.
+See `.dev/tasks/board.yaml` for the authoritative list. The P0 alignment and P1 hardening tasks (including Grype, goreleaser v2 migration, distroless digest, and synthesis edge-case tests) are complete. Remaining work focuses on broader integration testing (LZ-110) and deeper code hardening.
 
 ## How to Use This Handoff (DSH Workflow)
 
 1. Start a DSH session with `logzero` selected as the workspace, `DeepSeek-4.1-Flash` as the model, and **Workspace Write** permission mode.
-2. Paste the bootstrap prompt (see below) that tells the agent to read `AGENTS.md`, `HANDOFF.md`, and `tasks/board.yaml` and summarise before acting.
+2. Paste the bootstrap prompt (see below) that tells the agent to read `.dev/AGENTS.md`, `.dev/HANDOFF.md`, and `.dev/tasks/board.yaml` and summarise before acting.
 3. Review the agent's summary. If it describes LogZero correctly, approve **one task at a time**.
 4. After each task completes, review the diff, run the checks, and only then queue the next task.
 5. Do not let the agent work the entire board unsupervised on a first session.
@@ -47,9 +47,9 @@ See `tasks/board.yaml` for the authoritative list. The P0 alignment and P1 harde
 ```
 Read these files in order and wait for my next message:
 
-1. AGENTS.md
-2. HANDOFF.md
-3. tasks/board.yaml
+1. .dev/AGENTS.md
+2. .dev/HANDOFF.md
+3. .dev/tasks/board.yaml
 
 Do not start any task yet. After reading, give me:
 - A one-paragraph summary of what LogZero is
@@ -61,7 +61,7 @@ Wait for my confirmation before writing anything.
 
 ## Next Steps
 
-The v1.0 audit blockers are cleared. The immediate next task is LZ-110 (Broaden integration testing coverage across all testdata fixtures). Review tasks/board.yaml for the full queue.
+The v1.0 audit blockers are cleared. The immediate next task is LZ-110 (Broaden integration testing coverage across all testdata fixtures). Review `.dev/tasks/board.yaml` for the full queue.
 
 ## Do Not Touch
 
@@ -70,13 +70,13 @@ The v1.0 audit blockers are cleared. The immediate next task is LZ-110 (Broaden 
 - `.git/` — do not manipulate
 - `LICENSE` — do not modify
 - Signed release artifacts — immutable
-- `initial-audit.md` — historical reference
+- `.dev/initial-audit.md` — historical reference
 - `main` branch — agents must not push to `main`
 
 ## Entry-Point Files
 
-1. `HANDOFF.md` (this file) — current state and workflow
-2. `AGENTS.md` — repo-wide rules, conventions, branch strategy
-3. `tasks/board.yaml` — task queue
-4. `agents/*.md` — role definitions
-5. `DSH.md` — DSH session usage notes
+1. `.dev/HANDOFF.md` (this file) — current state and workflow
+2. `.dev/AGENTS.md` — repo-wide rules, conventions, branch strategy
+3. `.dev/tasks/board.yaml` — task queue
+4. `.dev/agents/*.md` — role definitions
+5. `.dev/DSH.md` — DSH session usage notes

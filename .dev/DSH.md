@@ -62,7 +62,7 @@ git status
 ## Working Protocol
 
 1. **One task per session.** Do not ask the agent to "do the whole board."
-2. **Read before write.** Always start with the bootstrap prompt that forces the agent to read `AGENTS.md`, `HANDOFF.md`, and `tasks/board.yaml` and summarise before acting.
+2. **Read before write.** Always start with the bootstrap prompt that forces the agent to read `.dev/AGENTS.md`, `.dev/HANDOFF.md`, and `.dev/tasks/board.yaml` and summarise before acting.
 3. **Review between tasks.** After each task, inspect `git diff`, run the checks yourself, and decide whether to continue.
 4. **Never push to `main`.** The agent works on `dsh/LZ-{id}` branches, PRs go to `dev`.
 5. **Kill the session if the agent hallucinates the repo.** If it describes files or packages that don't exist, stop immediately — do not try to "correct" it mid-session.
@@ -70,7 +70,7 @@ git status
 ## Per-Task Prompt Template
 
 ```
-Execute task {LZ-xxx} from tasks/board.yaml.
+Execute task {LZ-xxx} from .dev/tasks/board.yaml.
 
 - Create branch `dsh/{LZ-xxx}` off `dev`
 - Follow the constraints and done_criteria in the task
@@ -87,7 +87,7 @@ Stop after this task and wait for my review.
 - Push to `main`
 - Modify `testdata/` fixtures
 - Modify `go.sum` directly (running `go mod tidy` is fine)
-- Delete or rewrite `initial-audit.md`
+- Delete or rewrite `.dev/initial-audit.md`
 - Add dependencies without justification
 - Add telemetry, analytics, or non-AWS network calls to the tool
 - Add `go install` as a supported installation path for LogZero itself
