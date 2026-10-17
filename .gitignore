@@ -39,3 +39,4 @@ aws_config
 .gomodcache/
 .bin/
 /logzero
+.ghcache/
