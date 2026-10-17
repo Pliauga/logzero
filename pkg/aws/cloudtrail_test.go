@@ -78,6 +78,60 @@ func TestIngestFromReader_PayloadLimit(t *testing.T) {
 	}
 }
 
+// TestIngestFromReaderEdgeCases covers silent-failure paths introduced when
+// the reader gained strict parsing: corrupt input must error, non-CloudTrail
+// JSON objects must not be counted as events, and NDJSON lines larger than
+// bufio.Scanner's 64KB token limit must still parse.
+func TestIngestFromReaderEdgeCases(t *testing.T) {
+	t.Run("corrupt JSON", func(t *testing.T) {
+		agg := parser.NewActionAggregator()
+		count, err := IngestFromReader(strings.NewReader(`{"eventSource": "s3", "eventName":`), agg)
+		if err == nil {
+			t.Fatalf("expected error for truncated JSON, got nil (count=%d)", count)
+		}
+		if count != 0 {
+			t.Errorf("expected 0 ingested on corrupt input, got %d", count)
+		}
+	})
+
+	t.Run("non-CloudTrail JSON is skipped", func(t *testing.T) {
+		input := `{"foo":"bar"}` + "\n" +
+			`{"eventSource":"s3.amazonaws.com","eventName":"GetObject"}`
+		agg := parser.NewActionAggregator()
+		count, err := IngestFromReader(strings.NewReader(input), agg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("expected 1 event (unrelated object skipped), got %d", count)
+		}
+	})
+
+	t.Run("long NDJSON line exceeds scanner limit", func(t *testing.T) {
+		bigName := strings.Repeat("A", 100*1024)
+		input := `{"eventSource":"s3.amazonaws.com","eventName":"` + bigName + `"}`
+		agg := parser.NewActionAggregator()
+		count, err := IngestFromReader(strings.NewReader(input), agg)
+		if err != nil {
+			t.Fatalf("unexpected error on long NDJSON line: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("expected 1 event from 100KB NDJSON line, got %d", count)
+		}
+	})
+
+	t.Run("empty input", func(t *testing.T) {
+		agg := parser.NewActionAggregator()
+		count, err := IngestFromReader(strings.NewReader(""), agg)
+		if err != nil {
+			t.Fatalf("unexpected error for empty input: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("expected 0 events for empty input, got %d", count)
+		}
+	})
+}
+
 func TestIngestFromFile(t *testing.T) {
 	tempDir := t.TempDir()
 	fixtureFile := filepath.Join(tempDir, "events.json")
