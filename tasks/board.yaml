@@ -1,9 +1,11 @@
 # LogZero — DSH Task Board
 # Execute tasks in priority order, respecting depends_on.
 # One task per DSH session. Review between tasks.
+# status: done  = merged into dev; todo = not yet started.
 
 tasks:
   - id: LZ-100
+    status: done
     title: Align Go module path and config with renamed GitHub repo
     goal: Update the module path and all repo references to match github.com/Pliauga/logzero
     context: |
@@ -75,6 +77,7 @@ tasks:
     priority: P0
 
   - id: LZ-101
+    status: done
     title: Verify build and full test suite
     goal: Confirm the project builds and all tests pass with race detector
     context: Baseline verification after module-path alignment
@@ -107,6 +110,7 @@ tasks:
     priority: P0
 
   - id: LZ-102
+    status: done
     title: Run security scanning tools and record baseline
     goal: Execute gosec and govulncheck and record the current findings baseline
     context: Security baseline. Tools must already be installed (see DSH.md pre-flight).
@@ -140,6 +144,7 @@ tasks:
     priority: P0
 
   - id: LZ-103
+    status: done
     title: Validate GoReleaser configuration
     goal: Verify .goreleaser.yaml is valid and snapshot build succeeds
     context: Distribution pipeline validation. Requires goreleaser pre-installed.
@@ -170,6 +175,7 @@ tasks:
     priority: P1
 
   - id: LZ-104
+    status: done
     title: Pin gosec and govulncheck versions in security.yml and DSH.md
     goal: Replace '@latest' with pinned versions for reproducible CI and reproducible agent pre-flight
     context: security.yml and DSH.md both use go install ...@latest, which contradicts LogZero's supply-chain posture
@@ -201,6 +207,7 @@ tasks:
     priority: P1
 
   - id: LZ-105
+    status: done
     title: Add container image scanning to release workflow
     goal: Scan the built container image for vulnerabilities before publishing
     context: release.yml currently has Cosign and Syft but no Grype/Trivy image scanning
@@ -227,6 +234,7 @@ tasks:
     priority: P1
 
   - id: LZ-106
+    status: done
     title: Pin builder image by digest in Dockerfile
     goal: Pin the golang builder stage by digest and align version to 1.25
     context: Dockerfile uses 'FROM golang:1.22-alpine' which mismatches go.mod's Go 1.25.0
@@ -253,6 +261,7 @@ tasks:
     priority: P1
 
   - id: LZ-107
+    status: done
     title: Add docker_signs to .goreleaser.yaml
     goal: Sign the container image so users can verify it with cosign
     context: Binaries and checksums are signed; the image is not
@@ -279,6 +288,7 @@ tasks:
     priority: P1
 
   - id: LZ-108
+    status: done
     title: Decide and document gosec failure policy
     goal: Resolve whether gosec findings should block PRs
     context: security.yml currently uses 'gosec -no-fail'; for a security tool this is likely wrong
@@ -306,6 +316,7 @@ tasks:
     priority: P1
 
   - id: LZ-109
+    status: done
     title: Add edge case tests for synthesis package
     goal: Improve test coverage for synthesis edge cases
     context: pkg/synthesis handles HCL and JSON generation with path-traversal and atomic-write protections
@@ -342,6 +353,8 @@ tasks:
     priority: P1
 
   - id: LZ-110
+    status: todo
+    note: "Priority: P1. Focus: End-to-end tests across all testdata fixtures and the new atomic/path-traversal edge cases."
     title: Add integration tests across all testdata fixtures
     goal: Ensure every fixture produces valid output through the full pipeline
     context: |
@@ -381,6 +394,7 @@ tasks:
     priority: P1
 
   - id: LZ-112
+    status: done
     title: Create ROADMAP.md
     goal: Document the project roadmap
     context: Future features and improvements
@@ -406,6 +420,7 @@ tasks:
     priority: P2
 
   - id: LZ-113
+    status: done
     title: Add goreleaser snapshot validation to CI
     goal: Validate the release pipeline on every PR without publishing
     context: Catch GoReleaser config regressions before tags are cut
@@ -435,6 +450,7 @@ tasks:
     priority: P2
 
   - id: LZ-116
+    status: done
     title: Tighten directory creation mode in synthesis writer
     goal: Change the synthesis output directory mode from 0755 to 0750 and cover it with a test
     context: |
@@ -469,6 +485,7 @@ tasks:
     priority: P1
 
   - id: LZ-117
+    status: done
     title: Exclude .gomodcache from gosec scans
     goal: Stop local gosec scans from treating workspace GOMODCACHE as first-party code
     context: |
@@ -505,6 +522,7 @@ tasks:
     priority: P1
 
   - id: LZ-118
+    status: done
     title: Prohibit gosec AI flags in CI
     goal: Document that gosec -ai-* flags are forbidden in LogZero CI
     context: |
@@ -535,6 +553,7 @@ tasks:
     priority: P2
 
   - id: LZ-119
+    status: done
     title: Document govulncheck PATH resolution
     goal: Prevent agents from picking up the broken MacPorts govulncheck build
     context: |
@@ -564,6 +583,7 @@ tasks:
     priority: P2
 
   - id: LZ-120
+    status: done
     title: Migrate dockers and docker_manifests to dockers_v2
     goal: Adopt dockers_v2 before goreleaser removes the deprecated form
     context: |
@@ -605,6 +625,7 @@ tasks:
     priority: P1
 
   - id: LZ-121
+    status: done
     title: Fix stale distroless digest in production Dockerfile stage
     goal: Resolve the pinned digest mismatch in the production stage
     context: |

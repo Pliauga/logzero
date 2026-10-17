@@ -30,7 +30,7 @@ The tool's core promise is that **no security data leaves the operator's environ
 
 ## Tech Stack
 
-- Go 1.25
+- Go 1.26.9
 
 - Cobra (CLI)
 
