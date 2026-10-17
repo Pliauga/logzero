@@ -19,6 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - GitHub Action composite for CI/CD integration
 
 ### Changed
+- Moved internal agent and project-management files (`AGENTS.md`, `DSH.md`,
+  `HANDOFF.md`, `initial-audit.md`, `SECURITY-BASELINE.md`, the `tasks/` task
+  board, and the `agents/` role definitions) into a `.dev/` directory so the
+  repository root shows only user-facing project files. Internal cross-references
+  in the moved documents were updated to the new `.dev/` paths. No runtime or
+  published artifact is affected.
+
+### Changed
 - Aligned the Go module path and all repository references with the renamed
   GitHub repository (previously published under the `logzero/logzero` module
   path), which is now `github.com/Pliauga/logzero`. This includes Go import

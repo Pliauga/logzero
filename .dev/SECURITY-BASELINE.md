@@ -37,7 +37,7 @@ Scan scope: 5 first-party packages, 739 lines, 88 files, 0 `nosec` directives.
 
 > **Scope note.** The `./...` pattern also matches the repository-local module
 > cache at `.gomodcache/` (introduced by the sandbox workaround documented in
-> `AGENTS.md`), which inflates the raw count to 34 findings / 12,074 lines.
+> `.dev/AGENTS.md`), which inflates the raw count to 34 findings / 12,074 lines.
 > 32 of those 34 findings are `G104` (unhandled errors, LOW) inside vendored
 > third-party sources under `.gomodcache/` — notably
 > `github.com/hashicorp/hcl/v2@v2.22.0/diagnostic_text.go` and
@@ -77,7 +77,7 @@ access under a fixed root. That would be a defence-in-depth improvement, but it
 would change the intended semantics: LogZero deliberately writes to a
 caller-chosen path, so restricting writes to a fixed root would break the
 documented `--output <path>` behaviour. Treated as **accepted risk**, not a
-defect. AGENTS.md explicitly states "Path traversal protection is enforced in
+defect. `.dev/AGENTS.md` explicitly states "Path traversal protection is enforced in
 the synthesis writer. Do not weaken it" — this baseline documents the control
 rather than proposing to relax it.
 
@@ -93,7 +93,7 @@ payload itself is not exposed; the concern is only that the containing
 directory is group/other-traversable.
 
 **Proposed follow-up: `LZ-114`** *(proposed ID — not yet present on
-`tasks/board.yaml`; requires board addition)* — change
+`.dev/tasks/board.yaml`; requires board addition)* — change
 `os.MkdirAll(dir, 0755)` to `os.MkdirAll(dir, 0750)` and add a test asserting the
 created directory mode. This is a one-line, low-risk hardening change. It is the
 only finding from this baseline that warrants code change.
@@ -197,7 +197,7 @@ completed with no AI provider configured. Because gosec is developer/CI tooling
 and not part of the LogZero runtime, this does not affect LogZero's zero-egress
 guarantee for security data. It is recorded here because a future contributor
 adding `-ai-api-key` to CI would transmit source excerpts to a third party, which
-*would* violate the spirit of AGENTS.md's zero-egress rule. No AI flags should be
+*would* violate the spirit of `.dev/AGENTS.md`'s zero-egress rule. No AI flags should be
 added to CI.
 
 ### Provenance limitation
@@ -214,7 +214,7 @@ is the recommended direction for LZ-104.
 ## Reproduction
 
 All commands run from the repository root with the sandbox caches from
-`AGENTS.md`:
+`.dev/AGENTS.md`:
 
 ```bash
 export GOCACHE=$PWD/.gocache
