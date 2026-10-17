@@ -4,6 +4,8 @@ This file is the entry point for a DeepSeek Harness session working on LogZero. 
 
 ## Current State
 
+**Release Ready (v1.0)**
+
 - **Build:** ✅ `go build ./...` passes
 - **Tests:** ✅ All tests in `./...` pass with `-race` (`go test -race -count=1 ./...`)
 - **Vet:** ✅ `go vet ./...` clean
@@ -12,6 +14,8 @@ This file is the entry point for a DeepSeek Harness session working on LogZero. 
 - **CI security:** GitHub Actions `security.yml` runs gosec, govulncheck, CodeQL, and dependency review.
 - **CI release:** GitHub Actions `release.yml` runs GoReleaser with Cosign signing, Syft SBOM generation, and multi-arch Grype image scanning. Images are built via `dockers_v2` from `Dockerfile.goreleaser`. Release is gated on a passing scan (draft release is un-drafted only on success).
 - **Distribution:** GoReleaser produces static binaries for linux/darwin/windows on amd64/arm64, signed checksums, SPDX SBOMs, and multi-arch Docker manifests from a distroless base.
+- **Toolchain:** Go 1.26.9, pinned via the `toolchain` directive in `go.mod` and enforced in CI.
+- **Container builds:** Multi-arch images are built by GoReleaser's `dockers_v2` block using `Dockerfile.goreleaser` (pre-built binary context); the repo-root `Dockerfile` remains the two-stage source build for local developers.
 
 ## What Is Done
 
@@ -57,7 +61,7 @@ Wait for my confirmation before writing anything.
 
 ## Next Steps
 
-Review `tasks/board.yaml` for remaining open tasks. The core codebase is currently passing `go test -race ./...` and `goreleaser check`.
+The v1.0 audit blockers are cleared. The immediate next task is LZ-110 (Broaden integration testing coverage across all testdata fixtures). Review tasks/board.yaml for the full queue.
 
 ## Do Not Touch
 
