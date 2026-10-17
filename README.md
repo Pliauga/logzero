@@ -95,7 +95,7 @@ CloudTrail JSON ──→ Ingestion ──→ Normalization ──→ Aggregatio
 
 ```bash
 make test       # Run tests with race detector
-make lint       # go vet + golangci-lint
+make lint       # golangci-lint
 make fuzz       # Fuzz test the parser (30s)
 make vulncheck  # govulncheck
 make build      # Static binary → bin/logzero

@@ -16,9 +16,13 @@ This file documents how to use it productively on LogZero. It does not describe 
 Install required tooling in your shell so agents don't spend context on it:
 
 ```
+export GOBIN=$PWD/.bin
+export PATH="$GOBIN:$PATH"
 go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
 go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
 ```
+
+Redirect GOBIN to the workspace to avoid read-only permission errors with the default `~/go/bin` in sandboxed environments.
 
 Install GoReleaser (not available via `go install`; use Homebrew on macOS):
 
