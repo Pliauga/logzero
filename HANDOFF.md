@@ -22,7 +22,7 @@ This file is the entry point for a DeepSeek Harness session working on LogZero. 
 5. CLI with offline and live modes
 6. Fuzz testing, PII-exclusion tests, multi-partition ARN validation tests, path-traversal rejection, atomic-write tests, performance benchmarks
 7. Security workflows (gosec, govulncheck, CodeQL, dependency review)
-8. Release workflow (GoReleaser, Cosign, Syft)
+8. Release workflow (GoReleaser v2 with dockers_v2, Cosign, Syft, multi-arch Grype gated draft release)
 9. Distroless Dockerfile pinned by digest
 10. Documentation: README, SECURITY, AGENTS, ARCHITECTURE, CONTRIBUTING, CHANGELOG, TESTING
 

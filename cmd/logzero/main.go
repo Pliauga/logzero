@@ -138,9 +138,9 @@ func runRootCmd(cmd *cobra.Command, args []string) error {
 	case "json":
 		payload, err = synthesis.GenerateJSONPolicy(statements)
 	case "hcl":
-		fallthrough
-	default:
 		payload, err = synthesis.GenerateHCLPolicy(blockName, statements)
+	default:
+		return fmt.Errorf("unsupported format %q: must be \"hcl\" or \"json\"", format)
 	}
 
 	if err != nil {

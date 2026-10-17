@@ -135,3 +135,46 @@ func TestPerformanceAndMemoryConstraint(t *testing.T) {
 		t.Errorf("Memory constraint violated: Alloc RAM is %.2f MB (limit: < 25.0 MB)", allocMB)
 	}
 }
+
+// TestRunRootCmdRejectsUnknownFormat verifies that an unsupported --format
+// value is rejected with an explicit error, rather than silently falling
+// through to HCL output.
+func TestRunRootCmdRejectsUnknownFormat(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "cloudtrail_fixture.json")
+	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
+		fixturePath = filepath.Join("testdata", "cloudtrail_fixture.json")
+	}
+
+	tests := []struct {
+		format      string
+		expectUnsup bool
+	}{
+		{format: "yaml", expectUnsup: true},
+		{format: "json", expectUnsup: false},
+		{format: "hcl", expectUnsup: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.format, func(t *testing.T) {
+			outPath := filepath.Join(t.TempDir(), "policy.out")
+
+			cmd := newRootCmd()
+			cmd.SetArgs([]string{
+				"--file", fixturePath,
+				"--format", tc.format,
+				"--output", outPath,
+			})
+
+			err := cmd.Execute()
+
+			gotUnsup := err != nil && strings.Contains(err.Error(), "unsupported format")
+			if gotUnsup != tc.expectUnsup {
+				t.Fatalf("--format %s: unsupported-format error = %v (err = %v), want %v",
+					tc.format, gotUnsup, err, tc.expectUnsup)
+			}
+			if tc.expectUnsup && err != nil {
+				t.Logf("--format %s correctly rejected: %v", tc.format, err)
+			}
+		})
+	}
+}
