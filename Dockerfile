@@ -16,9 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     ./cmd/logzero
 
 # Production stage — distroless static, pinned by digest
-# ASSUMPTION: Using latest known digest for gcr.io/distroless/static:nonroot
 # Update this digest when upgrading the base image
-FROM gcr.io/distroless/static:nonroot@sha256:6ec5aa99dc335b8d8f71b85c9088c2ff8637b56a7d3e2e01a543e736ab44b519
+FROM gcr.io/distroless/static:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 
 COPY --from=builder /bin/logzero /bin/logzero
 
