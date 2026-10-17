@@ -59,6 +59,11 @@ jobs:
       - name: Scan container image with Grype
         uses: anchore/scan-action@v4
         with:
-          image: "ghcr.io/pliauga/logzero:${{ github.ref_name }}-amd64"
+          image: "ghcr.io/pliauga/logzero:${{ github.ref_name }}"
           fail-build: true
           severity-cutoff: high
+
+      - name: Publish Draft Release
+        run: gh release edit ${{ github.ref_name }} --draft=false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
