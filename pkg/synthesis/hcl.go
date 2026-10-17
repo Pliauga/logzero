@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/Pliauga/logzero/pkg/models"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,15 +24,17 @@ func ValidateOutputPath(rawPath string) (string, error) {
 		return "", nil
 	}
 
-	cleaned := filepath.Clean(rawPath)
-	parts := strings.Split(cleaned, string(filepath.Separator))
+	// Inspect the raw input before cleaning: filepath.Clean resolves ".."
+	// segments, so "/tmp/work/../../etc/passwd" would collapse to
+	// "/etc/passwd" and slip past a post-clean check.
+	parts := strings.Split(rawPath, string(filepath.Separator))
 	for _, part := range parts {
 		if part == ".." {
 			return "", fmt.Errorf("%w: %s", ErrPathTraversal, rawPath)
 		}
 	}
 
-	return cleaned, nil
+	return filepath.Clean(rawPath), nil
 }
 
 func GenerateHCLPolicy(dataBlockName string, statements []models.IAMStatement) ([]byte, error) {
@@ -113,14 +115,34 @@ func WriteOutput(targetPath string, content []byte, fallbackWriter io.Writer) er
 		}
 	}
 
-	file, err := os.OpenFile(cleanedPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	// Write to a temporary file in the destination directory, then rename it
+	// into place. os.Rename is atomic within a filesystem, so readers never
+	// observe a partially written policy.
+	tmp, err := os.CreateTemp(dir, ".logzero-*.tmp")
 	if err != nil {
-		return fmt.Errorf("creating output file: %w", err)
+		return fmt.Errorf("creating temporary output file: %w", err)
 	}
-	defer file.Close()
+	tmpName := tmp.Name()
 
-	if _, err := file.Write(content); err != nil {
+	// Best-effort cleanup; a successful rename below makes this a no-op.
+	defer os.Remove(tmpName)
+
+	if _, err := tmp.Write(content); err != nil {
+		tmp.Close()
 		return fmt.Errorf("writing policy payload: %w", err)
+	}
+
+	if err := tmp.Chmod(0600); err != nil {
+		tmp.Close()
+		return fmt.Errorf("setting output file permissions: %w", err)
+	}
+
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("closing output file: %w", err)
+	}
+
+	if err := os.Rename(tmpName, cleanedPath); err != nil {
+		return fmt.Errorf("committing output file: %w", err)
 	}
 
 	return nil

@@ -27,3 +27,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   must update their import paths accordingly.
 - Updated the Go toolchain used in CI (`security.yml`, `release.yml`) from 1.22
   to 1.25, matching the `go 1.25.0` directive in `go.mod`.
+- Path validation in `pkg/synthesis` now rejects any `..` segment in the raw
+  input path, including cases that previously normalized harmlessly (e.g.
+  `foo/../bar`). Users must supply normalized paths.
+- Output file writes in `pkg/synthesis` are now atomic (temp file + rename).
+
+### Fixed
+- `--format` flag now returns an error for unsupported values instead of
+  silently falling through to HCL output.
+- `IngestFromReader` now correctly errors on corrupt input and ignores
+  non-CloudTrail JSON objects, preventing silent data loss.

@@ -29,11 +29,11 @@ builds:
       - -X main.date={{.Date}}
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: 'checksums.txt'
@@ -61,43 +61,30 @@ docker_signs:
       - "${artifact}@${digest}"
     output: true
 
-dockers:
-  - image_templates:
-      - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/Pliauga/logzero"
-    dockerfile: Dockerfile
-    goarch: amd64
-  - image_templates:
-      - "ghcr.io/pliauga/logzero:{{ .Version }}-arm64"
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/Pliauga/logzero"
-    dockerfile: Dockerfile
-    goarch: arm64
+dockers_v2:
+  - ids:
+      - logzero
+    images:
+      - "ghcr.io/pliauga/logzero"
+    tags:
+      - "{{ .Version }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    dockerfile: Dockerfile.goreleaser
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "https://github.com/Pliauga/logzero"
 
-docker_manifests:
-  - name_template: "ghcr.io/pliauga/logzero:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
-      - "ghcr.io/pliauga/logzero:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/pliauga/logzero:latest"
-    image_templates:
-      - "ghcr.io/pliauga/logzero:{{ .Version }}-amd64"
-      - "ghcr.io/pliauga/logzero:{{ .Version }}-arm64"
+release:
+  github:
+    owner: Pliauga
+    name: logzero
+  draft: true
 
 changelog:
   sort: asc

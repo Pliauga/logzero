@@ -41,7 +41,7 @@ func newRootCmd() *cobra.Command {
 API event streams (live or offline fixtures) and generates tightened, least-privilege
 Terraform IAM policy documents (data "aws_iam_policy_document").`,
 		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
-		RunE: runRootCmd,
+		RunE:    runRootCmd,
 	}
 
 	cmd.Flags().StringVarP(&roleARN, "role-arn", "r", "", "Target IAM Role ARN or Name to filter CloudTrail events")
@@ -138,9 +138,9 @@ func runRootCmd(cmd *cobra.Command, args []string) error {
 	case "json":
 		payload, err = synthesis.GenerateJSONPolicy(statements)
 	case "hcl":
-		fallthrough
-	default:
 		payload, err = synthesis.GenerateHCLPolicy(blockName, statements)
+	default:
+		return fmt.Errorf("unsupported format %q: must be \"hcl\" or \"json\"", format)
 	}
 
 	if err != nil {

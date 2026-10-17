@@ -18,6 +18,10 @@ The tool's core promise is that **no security data leaves the operator's environ
 
 - `pkg/synthesis/` — IAM JSON and Terraform HCL generation, atomic file writes
 
+- `Dockerfile` — Two-stage source build for local developers.
+
+- `Dockerfile.goreleaser` — Single-stage pre-built artifact copy used by goreleaser's `dockers_v2`. Do not merge these files.
+
 - `testdata/` — Read-only CloudTrail fixtures (do not modify)
 
 - `agents/` — DSH agent role definitions
@@ -33,8 +37,6 @@ The tool's core promise is that **no security data leaves the operator's environ
 - hashicorp/hcl/v2 and zclconf/go-cty (HCL generation)
 
 - AWS SDK for Go v2
-
-- testify (testing only)
 
 ## Build & Test Commands
 
@@ -72,7 +74,15 @@ export GOCACHE=$PWD/.gocache
 
 export GOMODCACHE=$PWD/.gomodcache
 
+export GOBIN=$PWD/.bin
+
+export PATH="$GOBIN:$PATH"
+
 ```
+
+Go-installed tools (gosec, govulncheck) must use `GOBIN=$PWD/.bin` so they
+
+land in the workspace, not the read-only `~/go/bin`.
 
 The `.gocache/` and `.gomodcache/` directories are gitignored. Do not commit
 
@@ -126,13 +136,16 @@ CloudTrail JSON (file or live API)
 
 - **No `go install` for LogZero itself.** LogZero is distributed only as pre-built signed binaries and a hardened container image. Do not add `go install github.com/Pliauga/logzero@latest` as a supported installation path. (Note: this rule is about *how users install LogZero*. It does **not** apply to tooling that agents or CI install — see [DSH.md](DSH.md) for agent tooling policy.)
 
-- **Strict input sanitization.** All CloudTrail input is treated as untrusted. PII fields are excluded during unmarshal. ARNs are validated against a multi-partition allowlist `aws`, `aws-us-gov`, `aws-cn`).
+- **Strict input sanitization.** All CloudTrail input is treated as untrusted. PII fields are excluded during unmarshal. ARNs are validated against a multi-partition allowlist `aws`, `aws-us-gov`, `aws-cn`, `aws-iso`, `aws-iso-b`).
 
 - **Path traversal protection** is enforced in the synthesis writer. Do not weaken it.
 
 - **gosec severity gate.** CI runs gosec with `-severity high`, which
   fails the build on HIGH or CRITICAL findings. MEDIUM and LOW findings
   are recorded in SARIF but do not block. Do not re-add `-no-fail`.
+  Do not use `-ai-*` flags with gosec in CI. The AI remediation advice may
+  leak code context to third-party AI providers, violating the zero-egress
+  principle.
 
 - **Never commit secrets, credentials, tokens, or real AWS account identifiers.** Test fixtures use documented placeholder account IDs `123456789012`, `111122223333`, etc.).
 
@@ -213,3 +226,5 @@ test(aws): add NDJSON edge case coverage [LZ-101]
 - Conventional commit message with task ID
 
 - Update `CHANGELOG.md` under `[Unreleased]` for user-visible changes
+
+- If modifying `.github/workflows/release.yml`, ensure `gh` CLI is available (the `ubuntu-latest` runner provides it, but explicitly installing it via action is preferred for self-documenting workflows).

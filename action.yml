@@ -46,24 +46,26 @@ runs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
+        go-version: '1.26.9'
 
     - name: Run logzero
       shell: bash
       run: |
-        ARGS=""
+        cd "${{ github.action_path }}"
+
+        ARGS=()
         if [ -n "${{ inputs.role-arn }}" ]; then
-          ARGS="$ARGS --role-arn ${{ inputs.role-arn }}"
+          ARGS+=("--role-arn" "${{ inputs.role-arn }}")
         fi
         if [ -n "${{ inputs.file }}" ]; then
-          ARGS="$ARGS --file ${{ inputs.file }}"
+          ARGS+=("--file" "${{ inputs.file }}")
         else
-          ARGS="$ARGS --time-window ${{ inputs.time-window }}"
+          ARGS+=("--time-window" "${{ inputs.time-window }}")
         fi
         if [ -n "${{ inputs.aws-region }}" ]; then
-          ARGS="$ARGS --region ${{ inputs.aws-region }}"
+          ARGS+=("--region" "${{ inputs.aws-region }}")
         fi
-        ARGS="$ARGS --output ${{ inputs.output }} --format ${{ inputs.format }} --name ${{ inputs.name }}"
+        ARGS+=("--output" "${{ inputs.output }}" "--format" "${{ inputs.format }}" "--name" "${{ inputs.name }}")
 
-        echo "==> Executing: logzero $ARGS"
-        go run ./cmd/logzero $ARGS
+        echo "==> Executing: logzero ${ARGS[*]}"
+        go run ./cmd/logzero "${ARGS[@]}"

@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,13 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Pliauga/logzero/pkg/models"
+	"github.com/Pliauga/logzero/pkg/parser"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	ctTypes "github.com/aws/aws-sdk-go-v2/service/cloudtrail/types"
-	"github.com/Pliauga/logzero/pkg/models"
-	"github.com/Pliauga/logzero/pkg/parser"
 )
 
 const (
@@ -125,6 +124,11 @@ func (c *Client) IngestEvents(ctx context.Context, opts IngestionOptions, aggreg
 	return totalIngested, nil
 }
 
+// IngestFromReader parses CloudTrail events from r, accepting a raw JSON
+// array, the CloudTrail {"Records": [...]} wrapper form, or NDJSON.
+// Input is capped at MaxReadSizeBytes. It returns an error when the input is
+// non-empty but contains no valid CloudTrail events, rather than silently
+// reporting zero ingested events.
 func IngestFromReader(r io.Reader, aggregator *parser.ActionAggregator) (int, error) {
 	limitedReader := io.LimitReader(r, MaxReadSizeBytes+1)
 	data, err := io.ReadAll(limitedReader)
@@ -136,54 +140,76 @@ func IngestFromReader(r io.Reader, aggregator *parser.ActionAggregator) (int, er
 		return 0, ErrPayloadTooLarge
 	}
 
-	totalIngested := 0
-
-	// 1. JSON array of events
-	var events []models.CloudTrailRawEvent
-	if err := json.Unmarshal(data, &events); err == nil && len(events) > 0 {
-		for _, ev := range events {
-			if totalIngested >= MaxEventCap {
-				return totalIngested, ErrEventCapExceeded
-			}
-			aggregator.IngestRawEvent(ev)
-			totalIngested++
-		}
-		return totalIngested, nil
+	// isValidEvent rejects unrelated JSON objects (e.g. {"foo":"bar"}) that
+	// unmarshal cleanly into a zero-valued event, which previously inflated
+	// the ingested count with non-CloudTrail data.
+	isValidEvent := func(ev models.CloudTrailRawEvent) bool {
+		return ev.EventSource != "" || ev.EventName != ""
 	}
 
-	// 2. CloudTrail {"Records": [...]} wrapper format
+	filterValid := func(events []models.CloudTrailRawEvent) []models.CloudTrailRawEvent {
+		valid := make([]models.CloudTrailRawEvent, 0, len(events))
+		for _, ev := range events {
+			if isValidEvent(ev) {
+				valid = append(valid, ev)
+			}
+		}
+		return valid
+	}
+
+	ingest := func(events []models.CloudTrailRawEvent) (int, error) {
+		count := 0
+		for _, ev := range events {
+			if count >= MaxEventCap {
+				return count, ErrEventCapExceeded
+			}
+			aggregator.IngestRawEvent(ev)
+			count++
+		}
+		return count, nil
+	}
+
+	// 1. Raw JSON array of events.
+	var arr []models.CloudTrailRawEvent
+	if err := json.Unmarshal(data, &arr); err == nil {
+		if valid := filterValid(arr); len(valid) > 0 {
+			return ingest(valid)
+		}
+	}
+
+	// 2. CloudTrail {"Records": [...]} wrapper format.
 	var wrapper struct {
 		Records []models.CloudTrailRawEvent `json:"Records"`
 	}
-	if err := json.Unmarshal(data, &wrapper); err == nil && len(wrapper.Records) > 0 {
-		for _, ev := range wrapper.Records {
-			if totalIngested >= MaxEventCap {
-				return totalIngested, ErrEventCapExceeded
-			}
-			aggregator.IngestRawEvent(ev)
-			totalIngested++
+	if err := json.Unmarshal(data, &wrapper); err == nil {
+		if valid := filterValid(wrapper.Records); len(valid) > 0 {
+			return ingest(valid)
 		}
-		return totalIngested, nil
 	}
 
-	// 3. NDJSON (newline-delimited JSON)
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
+	// 3. NDJSON (newline-delimited JSON). The payload is split manually rather
+	// than with bufio.Scanner so that lines exceeding the 64KB scanner token
+	// limit are still parsed; the scanner previously truncated them silently.
+	var ndjsonEvents []models.CloudTrailRawEvent
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
 		var ev models.CloudTrailRawEvent
-		if err := json.Unmarshal(line, &ev); err == nil {
-			if totalIngested >= MaxEventCap {
-				return totalIngested, ErrEventCapExceeded
-			}
-			aggregator.IngestRawEvent(ev)
-			totalIngested++
+		if err := json.Unmarshal(line, &ev); err == nil && isValidEvent(ev) {
+			ndjsonEvents = append(ndjsonEvents, ev)
 		}
 	}
+	if len(ndjsonEvents) > 0 {
+		return ingest(ndjsonEvents)
+	}
 
-	return totalIngested, nil
+	if len(data) > 0 {
+		return 0, fmt.Errorf("failed to parse input: no valid CloudTrail events found")
+	}
+
+	return 0, nil
 }
 
 func IngestFromFile(filePath string, aggregator *parser.ActionAggregator) (int, error) {

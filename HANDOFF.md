@@ -10,7 +10,7 @@ This file is the entry point for a DeepSeek Harness session working on LogZero. 
 - **Core engine:** Functional. CloudTrail JSON → normalized actions → IAM JSON / HCL synthesis works end to end.
 - **CLI:** Cobra-based, supports `--format json|hcl`, offline file ingestion and live CloudTrail API mode.
 - **CI security:** GitHub Actions `security.yml` runs gosec, govulncheck, CodeQL, and dependency review.
-- **CI release:** GitHub Actions `release.yml` runs GoReleaser with Cosign signing and Syft SBOM generation. **Container image scanning (Grype/Trivy) is not yet present — see LZ-105.**
+- **CI release:** GitHub Actions `release.yml` runs GoReleaser with Cosign signing, Syft SBOM generation, and multi-arch Grype image scanning. Images are built via `dockers_v2` from `Dockerfile.goreleaser`. Release is gated on a passing scan (draft release is un-drafted only on success).
 - **Distribution:** GoReleaser produces static binaries for linux/darwin/windows on amd64/arm64, signed checksums, SPDX SBOMs, and multi-arch Docker manifests from a distroless base.
 
 ## What Is Done
@@ -22,32 +22,13 @@ This file is the entry point for a DeepSeek Harness session working on LogZero. 
 5. CLI with offline and live modes
 6. Fuzz testing, PII-exclusion tests, multi-partition ARN validation tests, path-traversal rejection, atomic-write tests, performance benchmarks
 7. Security workflows (gosec, govulncheck, CodeQL, dependency review)
-8. Release workflow (GoReleaser, Cosign, Syft)
+8. Release workflow (GoReleaser v2 with dockers_v2, Cosign, Syft, multi-arch Grype gated draft release)
 9. Distroless Dockerfile pinned by digest
 10. Documentation: README, SECURITY, AGENTS, ARCHITECTURE, CONTRIBUTING, CHANGELOG, TESTING
 
 ## What Remains
 
-See `tasks/board.yaml` for the authoritative list. Summary by priority:
-
-### P0 — Verification and alignment (do first)
-- `LZ-100` — Align Go module path and config with renamed GitHub repo
-- `LZ-101` — Full test-suite and build verification (after LZ-100)
-- `LZ-102` — Security scan baseline (gosec, govulncheck)
-
-### P1 — Hardening
-- Pin `gosec` and `govulncheck` versions in `security.yml`
-- Add container image scanning (Grype/Trivy) to `release.yml`
-- Pin the builder image (`golang:1.25-alpine`) by digest in `Dockerfile`
-- Decide and document `gosec -no-fail` policy
-- Add `docker_signs:` to `.goreleaser.yaml` so the container image is verifiable
-- Add edge-case tests for `pkg/synthesis`
-- Add integration tests across all `testdata/` fixtures
-
-### P2 — Polish
-- `ROADMAP.md`
-- Homebrew tap via GoReleaser `brews`
-- `action.yml` improvements
+See `tasks/board.yaml` for the authoritative list. The P0 alignment and P1 hardening tasks (including Grype, goreleaser v2 migration, distroless digest, and synthesis edge-case tests) are complete. Remaining work focuses on broader integration testing (LZ-110) and deeper code hardening.
 
 ## How to Use This Handoff (DSH Workflow)
 
@@ -74,9 +55,9 @@ Do not start any task yet. After reading, give me:
 Wait for my confirmation before writing anything.
 ```
 
-## First Task
+## Next Steps
 
-`LZ-100` — align Go module path and config with the renamed GitHub repo. Then `LZ-101` — verify build and full test suite. Both are P0.
+Review `tasks/board.yaml` for remaining open tasks. The core codebase is currently passing `go test -race ./...` and `goreleaser check`.
 
 ## Do Not Touch
 

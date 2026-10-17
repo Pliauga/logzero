@@ -2,6 +2,7 @@ package synthesis
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,5 +147,239 @@ func TestOutputDirectoryPermissions(t *testing.T) {
 	perm := info.Mode().Perm()
 	if perm != 0750 {
 		t.Errorf("Expected output directory permissions 0750, got %o", perm)
+	}
+}
+
+func TestGenerateHCLPolicyMinimalValidInput(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{"arn:aws:s3:::app-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("minimal_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `data "aws_iam_policy_document" "minimal_policy"`) {
+		t.Errorf("Missing minimal policy header in HCL: %s", hclStr)
+	}
+	if !strings.Contains(hclStr, `"s3:GetObject"`) {
+		t.Errorf("Missing single action in HCL: %s", hclStr)
+	}
+	if !strings.Contains(hclStr, `"arn:aws:s3:::app-bucket/*"`) {
+		t.Errorf("Missing single resource in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyWildcardOnlyResource(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{"*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("wildcard_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `resources = ["*"]`) {
+		t.Errorf("Missing wildcard-only resource in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyGovCloudARN(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{"arn:aws-us-gov:s3:::gov-compliance-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("govcloud_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `"arn:aws-us-gov:s3:::gov-compliance-bucket/*"`) {
+		t.Errorf("Missing GovCloud ARN in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyChinaPartitionARN(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"ec2:DescribeInstances"},
+			Resources: []string{"arn:aws-cn:ec2:cn-north-1:123456789012:instance/i-1234567890abcdef0"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("china_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `"arn:aws-cn:ec2:cn-north-1:123456789012:instance/i-1234567890abcdef0"`) {
+		t.Errorf("Missing China partition ARN in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyEmptyActionsList(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{},
+			Resources: []string{"arn:aws:s3:::app-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("empty_list_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `data "aws_iam_policy_document" "empty_list_policy"`) {
+		t.Errorf("Missing empty-list policy header in HCL: %s", hclStr)
+	}
+	if strings.Contains(hclStr, "actions =") {
+		t.Errorf("Empty actions list should not emit an actions attribute: %s", hclStr)
+	}
+	if !strings.Contains(hclStr, `"arn:aws:s3:::app-bucket/*"`) {
+		t.Errorf("Missing resource in empty-list HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyVeryLongResourceARN(t *testing.T) {
+	const arnPrefix = "arn:aws:s3:::very-long-bucket/"
+	longARN := arnPrefix + strings.Repeat("segment/", 120) + "object.json"
+
+	if len(longARN) <= 1000 {
+		t.Fatalf("test setup: expected ARN longer than 1000 chars, got %d", len(longARN))
+	}
+
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{longARN},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("long_arn_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, longARN) {
+		t.Errorf("Long resource ARN was truncated or altered in HCL output (input %d chars)", len(longARN))
+	}
+}
+
+func TestGenerateHCLPolicyActionsWithSpecialCharacters(t *testing.T) {
+	actions := []string{
+		"s3:GetObject",
+		"iam:CreateRole",
+		"sts:AssumeRoleWithSAML",
+		"execute-api:Invoke",
+		"secretsmanager:GetSecretValue",
+	}
+
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   actions,
+			Resources: []string{"arn:aws:s3:::app-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("special_actions_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	for _, action := range actions {
+		if !strings.Contains(hclStr, `"`+action+`"`) {
+			t.Errorf("Missing action %q in HCL output: %s", action, hclStr)
+		}
+	}
+}
+
+func TestValidateOutputPathAbsoluteTraversal(t *testing.T) {
+	rejected := []string{
+		"/tmp/work/../../etc/passwd",
+		"../foo",
+		"foo/../bar",
+	}
+	for _, p := range rejected {
+		_, err := ValidateOutputPath(p)
+		if !errors.Is(err, ErrPathTraversal) {
+			t.Errorf("Expected ErrPathTraversal for %q, got %v", p, err)
+		}
+	}
+
+	accepted := []string{
+		"foo/bar.tf",
+		"./policy.tf",
+		"/tmp/tightened_policy.tf",
+	}
+	for _, p := range accepted {
+		cleaned, err := ValidateOutputPath(p)
+		if err != nil {
+			t.Errorf("Expected %q to be accepted, got error: %v", p, err)
+			continue
+		}
+		if cleaned == "" {
+			t.Errorf("Expected non-empty cleaned path for %q", p)
+		}
+	}
+}
+
+func TestWriteOutputLeavesNoTempFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	targetFile := filepath.Join(tempDir, "policy.tf")
+
+	content := []byte(`data "aws_iam_policy_document" "no_temp" {}`)
+	if err := WriteOutput(targetFile, content, nil); err != nil {
+		t.Fatalf("WriteOutput failed: %v", err)
+	}
+
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to read temp dir: %v", err)
+	}
+
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+		if strings.HasPrefix(e.Name(), ".logzero-") {
+			t.Errorf("Temporary file left behind: %s", e.Name())
+		}
+	}
+
+	if len(names) != 1 {
+		t.Errorf("Expected exactly one file in output dir, got %d: %v", len(names), names)
+	}
+
+	info, err := os.Stat(targetFile)
+	if err != nil {
+		t.Fatalf("Failed to stat target file: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("Expected target file permissions 0600, got %o", perm)
 	}
 }

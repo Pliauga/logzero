@@ -4,7 +4,7 @@ First off, thank you for considering contributing to LogZero!
 
 ## Setup
 1. Clone the repository
-2. Ensure you have Go 1.22+ installed
+2. Ensure you have Go 1.26+ installed
 3. Run `go mod download`
 
 ## Testing
