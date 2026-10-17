@@ -2,6 +2,7 @@ package synthesis
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -315,5 +316,70 @@ func TestGenerateHCLPolicyActionsWithSpecialCharacters(t *testing.T) {
 		if !strings.Contains(hclStr, `"`+action+`"`) {
 			t.Errorf("Missing action %q in HCL output: %s", action, hclStr)
 		}
+	}
+}
+
+func TestValidateOutputPathAbsoluteTraversal(t *testing.T) {
+	rejected := []string{
+		"/tmp/work/../../etc/passwd",
+		"../foo",
+		"foo/../bar",
+	}
+	for _, p := range rejected {
+		_, err := ValidateOutputPath(p)
+		if !errors.Is(err, ErrPathTraversal) {
+			t.Errorf("Expected ErrPathTraversal for %q, got %v", p, err)
+		}
+	}
+
+	accepted := []string{
+		"foo/bar.tf",
+		"./policy.tf",
+		"/tmp/tightened_policy.tf",
+	}
+	for _, p := range accepted {
+		cleaned, err := ValidateOutputPath(p)
+		if err != nil {
+			t.Errorf("Expected %q to be accepted, got error: %v", p, err)
+			continue
+		}
+		if cleaned == "" {
+			t.Errorf("Expected non-empty cleaned path for %q", p)
+		}
+	}
+}
+
+func TestWriteOutputLeavesNoTempFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	targetFile := filepath.Join(tempDir, "policy.tf")
+
+	content := []byte(`data "aws_iam_policy_document" "no_temp" {}`)
+	if err := WriteOutput(targetFile, content, nil); err != nil {
+		t.Fatalf("WriteOutput failed: %v", err)
+	}
+
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to read temp dir: %v", err)
+	}
+
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+		if strings.HasPrefix(e.Name(), ".logzero-") {
+			t.Errorf("Temporary file left behind: %s", e.Name())
+		}
+	}
+
+	if len(names) != 1 {
+		t.Errorf("Expected exactly one file in output dir, got %d: %v", len(names), names)
+	}
+
+	info, err := os.Stat(targetFile)
+	if err != nil {
+		t.Fatalf("Failed to stat target file: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("Expected target file permissions 0600, got %o", perm)
 	}
 }
