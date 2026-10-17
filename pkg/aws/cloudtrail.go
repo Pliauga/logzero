@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Pliauga/logzero/pkg/models"
+	"github.com/Pliauga/logzero/pkg/parser"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	ctTypes "github.com/aws/aws-sdk-go-v2/service/cloudtrail/types"
-	"github.com/Pliauga/logzero/pkg/models"
-	"github.com/Pliauga/logzero/pkg/parser"
 )
 
 const (

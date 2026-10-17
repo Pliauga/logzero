@@ -143,6 +143,9 @@ CloudTrail JSON (file or live API)
 - **gosec severity gate.** CI runs gosec with `-severity high`, which
   fails the build on HIGH or CRITICAL findings. MEDIUM and LOW findings
   are recorded in SARIF but do not block. Do not re-add `-no-fail`.
+  Do not use `-ai-*` flags with gosec in CI. The AI remediation advice may
+  leak code context to third-party AI providers, violating the zero-egress
+  principle.
 
 - **Never commit secrets, credentials, tokens, or real AWS account identifiers.** Test fixtures use documented placeholder account IDs `123456789012`, `111122223333`, etc.).
 

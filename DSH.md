@@ -24,6 +24,8 @@ go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
 Redirect GOBIN to the workspace to avoid read-only permission errors with the default `~/go/bin` in sandboxed environments.
 
+If `govulncheck` is not found after installation, it may be in a non-standard GOPATH bin (e.g., `~/go/bin`). Run `which -a govulncheck` to locate it, and ensure that directory is in your `$PATH`.
+
 Install GoReleaser (not available via `go install`; use Homebrew on macOS):
 
 ```

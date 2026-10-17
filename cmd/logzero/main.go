@@ -41,7 +41,7 @@ func newRootCmd() *cobra.Command {
 API event streams (live or offline fixtures) and generates tightened, least-privilege
 Terraform IAM policy documents (data "aws_iam_policy_document").`,
 		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
-		RunE: runRootCmd,
+		RunE:    runRootCmd,
 	}
 
 	cmd.Flags().StringVarP(&roleARN, "role-arn", "r", "", "Target IAM Role ARN or Name to filter CloudTrail events")

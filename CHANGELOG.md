@@ -35,3 +35,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 - `--format` flag now returns an error for unsupported values instead of
   silently falling through to HCL output.
+- `IngestFromReader` now correctly errors on corrupt input and ignores
+  non-CloudTrail JSON objects, preventing silent data loss.
