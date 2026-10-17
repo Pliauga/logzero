@@ -63,6 +63,9 @@ jobs:
           fail-build: true
           severity-cutoff: high
 
+      - name: Verify gh CLI
+        run: gh --version
+
       - name: Publish Draft Release
         run: gh release edit ${{ github.ref_name }} --draft=false
         env:
