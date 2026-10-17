@@ -148,3 +148,172 @@ func TestOutputDirectoryPermissions(t *testing.T) {
 		t.Errorf("Expected output directory permissions 0750, got %o", perm)
 	}
 }
+
+func TestGenerateHCLPolicyMinimalValidInput(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{"arn:aws:s3:::app-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("minimal_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `data "aws_iam_policy_document" "minimal_policy"`) {
+		t.Errorf("Missing minimal policy header in HCL: %s", hclStr)
+	}
+	if !strings.Contains(hclStr, `"s3:GetObject"`) {
+		t.Errorf("Missing single action in HCL: %s", hclStr)
+	}
+	if !strings.Contains(hclStr, `"arn:aws:s3:::app-bucket/*"`) {
+		t.Errorf("Missing single resource in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyWildcardOnlyResource(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{"*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("wildcard_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `resources = ["*"]`) {
+		t.Errorf("Missing wildcard-only resource in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyGovCloudARN(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{"arn:aws-us-gov:s3:::gov-compliance-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("govcloud_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `"arn:aws-us-gov:s3:::gov-compliance-bucket/*"`) {
+		t.Errorf("Missing GovCloud ARN in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyChinaPartitionARN(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"ec2:DescribeInstances"},
+			Resources: []string{"arn:aws-cn:ec2:cn-north-1:123456789012:instance/i-1234567890abcdef0"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("china_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `"arn:aws-cn:ec2:cn-north-1:123456789012:instance/i-1234567890abcdef0"`) {
+		t.Errorf("Missing China partition ARN in HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyEmptyActionsList(t *testing.T) {
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{},
+			Resources: []string{"arn:aws:s3:::app-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("empty_list_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, `data "aws_iam_policy_document" "empty_list_policy"`) {
+		t.Errorf("Missing empty-list policy header in HCL: %s", hclStr)
+	}
+	if strings.Contains(hclStr, "actions =") {
+		t.Errorf("Empty actions list should not emit an actions attribute: %s", hclStr)
+	}
+	if !strings.Contains(hclStr, `"arn:aws:s3:::app-bucket/*"`) {
+		t.Errorf("Missing resource in empty-list HCL: %s", hclStr)
+	}
+}
+
+func TestGenerateHCLPolicyVeryLongResourceARN(t *testing.T) {
+	const arnPrefix = "arn:aws:s3:::very-long-bucket/"
+	longARN := arnPrefix + strings.Repeat("segment/", 120) + "object.json"
+
+	if len(longARN) <= 1000 {
+		t.Fatalf("test setup: expected ARN longer than 1000 chars, got %d", len(longARN))
+	}
+
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   []string{"s3:GetObject"},
+			Resources: []string{longARN},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("long_arn_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	if !strings.Contains(hclStr, longARN) {
+		t.Errorf("Long resource ARN was truncated or altered in HCL output (input %d chars)", len(longARN))
+	}
+}
+
+func TestGenerateHCLPolicyActionsWithSpecialCharacters(t *testing.T) {
+	actions := []string{
+		"s3:GetObject",
+		"iam:CreateRole",
+		"sts:AssumeRoleWithSAML",
+		"execute-api:Invoke",
+		"secretsmanager:GetSecretValue",
+	}
+
+	statements := []models.IAMStatement{
+		{
+			Effect:    "Allow",
+			Actions:   actions,
+			Resources: []string{"arn:aws:s3:::app-bucket/*"},
+		},
+	}
+
+	hclBytes, err := GenerateHCLPolicy("special_actions_policy", statements)
+	if err != nil {
+		t.Fatalf("GenerateHCLPolicy failed: %v", err)
+	}
+
+	hclStr := string(hclBytes)
+	for _, action := range actions {
+		if !strings.Contains(hclStr, `"`+action+`"`) {
+			t.Errorf("Missing action %q in HCL output: %s", action, hclStr)
+		}
+	}
+}

@@ -37,3 +37,5 @@ aws_config
 # DSH sandbox caches
 .gocache/
 .gomodcache/
+.bin/
+/logzero
