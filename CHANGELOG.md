@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   repository root shows only user-facing project files. Internal cross-references
   in the moved documents were updated to the new `.dev/` paths. No runtime or
   published artifact is affected.
+- Added a one-line root `AGENTS.md` stub pointing to `.dev/AGENTS.md`, so
+  agent instructions are still discovered from the repository root after the
+  `.dev/` reorganization.
 
 ### Changed
 - Aligned the Go module path and all repository references with the renamed
