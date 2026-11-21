@@ -30,6 +30,59 @@ for that date.
   database fetch was approved). The 2026-09-29 result below is the last
   recorded scan.
 
+## Revalidation — 2026-11-21 (`VULN-FIX-12611`) — Go 1.26.11 toolchain
+
+`govulncheck ./...` against the previous `go1.26.9` toolchain reported two
+standard-library advisories and no third-party findings. Both are fixed in
+`go1.26.11`, so the remediation is a toolchain bump only — no application Go
+source was changed.
+
+| Advisory | Package | Fixed in | Disposition |
+| --- | --- | --- | --- |
+| GO-2026-6859 | `net/http` (HTTP/1 server crash, `MaxBytesReader` header race) | go1.26.11 | Closed by toolchain bump |
+| GO-2026-6809 | `crypto/x509` (compromised intermediate certificates no longer trusted) | go1.26.11 | Closed by toolchain bump |
+
+**Changes made (write scope: toolchain/build/release documentation only):**
+
+- `go.mod`: `toolchain go1.26.9` → `toolchain go1.26.11`. The `go 1.26.0`
+  directive is unchanged, and `go mod tidy` is a no-op (`go.mod` and `go.sum`
+  both byte-identical before and after), so no dependency moved.
+- `Dockerfile`: builder stage `golang:1.26-alpine` → `golang:1.26.11-alpine`.
+  `ENV GOTOOLCHAIN=local` is preserved, so the image still fails loudly rather
+  than downloading a toolchain, and the pinned distroless runtime stage is
+  untouched.
+- CI: every `actions/setup-go` `go-version` pin moved from `'1.26.9'` to
+  `'1.26.11'` — `.github/workflows/release.yml:26`,
+  `.github/workflows/security.yml:24` and `.github/workflows/security.yml:105`.
+
+**Verification (all commands run with `GOCACHE`, `GOMODCACHE` and `GOPATH`
+redirected to `/tmp`, and `GOTOOLCHAIN=go1.26.11`):**
+
+| Gate | Result |
+| --- | --- |
+| `go version` | `go1.26.11 darwin/arm64` |
+| `go build ./...` | exit 0 |
+| `go vet ./...` | exit 0 |
+| `gofmt -l .` | no output |
+| `golangci-lint run ./...` | `0 issues.`, exit 0 |
+| `go test -race -count=1 ./...` | exit 0, all 5 packages `ok` |
+| `govulncheck ./...` | **`No vulnerabilities found.`**, exit 0 |
+
+**Residual observation (outside this directive's scope).** The workstation's
+default `go` is `go1.27.2`, and because `GOTOOLCHAIN` is `auto`, Go selects that
+newer local toolchain instead of the `go1.26.11` declared in `go.mod` (the
+`toolchain` line is a minimum, not a pin). Run against `go1.27.2`,
+`govulncheck ./...` still exits 3, reporting the same two advisory IDs as
+`Found in ...@go1.27.2` with fixes at `go1.27.3` (GO-2026-6809) and
+`go1.27.4` (GO-2026-6859). That is a separate, later fix line; closing it needs
+either a `go1.27.4` bump (a different directive) or running the gate with
+`GOTOOLCHAIN=go1.26.11`. CI is unaffected: `setup-go` installs exactly
+`1.26.11`, so the CI gate evaluates the patched 1.26 line.
+
+Also outside the declared write scope: `action.yml:49` (the composite action)
+still pins `go-version: '1.26.9'`. It was deliberately left untouched; aligning
+it should be a follow-up change.
+
 ## Tool versions
 
 | Tool | Version | Path | Notes |

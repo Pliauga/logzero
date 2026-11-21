@@ -27,7 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   must update their import paths accordingly.
 - Updated the Go toolchain used in CI (`security.yml`, `release.yml`) and the
   Docker builder image to 1.26, matching the `go 1.26.0` directive and the
-  `go1.26.9` toolchain in `go.mod`.
+  toolchain declared in `go.mod`.
+- Bumped the Go toolchain from `go1.26.9` to `go1.26.11` in `go.mod` and aligned
+  the Docker builder image (`golang:1.26.11-alpine`) and the GitHub Actions
+  `setup-go` pins. Go 1.26.11 is the first release containing the fixes for
+  GO-2026-6859 (`net/http` HTTP/1 server crash via `MaxBytesReader` header race)
+  and GO-2026-6809 (`crypto/x509` now distrusts the compromised intermediate
+  certificates), so this closes both standard-library findings reported by
+  `govulncheck ./...` against the previous toolchain.
 - Path validation in `pkg/synthesis` now rejects any `..` segment in the raw
   input path, including cases that previously normalized harmlessly (e.g.
   `foo/../bar`). Users must supply normalized paths.

@@ -1,5 +1,5 @@
-# Build stage — the builder must satisfy go.mod's toolchain directive (go1.26.9).
-FROM golang:1.26-alpine AS builder
+# Build stage — the builder must satisfy go.mod's toolchain directive (go1.26.11).
+FROM golang:1.26.11-alpine AS builder
 
 # Keep the build hermetic: fail loudly instead of downloading a toolchain.
 ENV GOTOOLCHAIN=local
